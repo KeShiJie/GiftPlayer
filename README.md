@@ -1,6 +1,6 @@
 # GiftPlayer
 
-Android animation player library for SVGA, PAG, and VAP resources.
+An Android animation and room effects library for gift animations, interactive room widgets, and SVGA/PAG/VAP playback.
 
 ## Install
 
