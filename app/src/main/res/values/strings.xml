@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">GiftPlayer</string>
+    <string name="demo_title">GiftPlayer Demo</string>
+    <string name="demo_status_idle">Paste a URL or enter an asset name, then tap Play.</string>
+    <string name="demo_url_hint">https://your.cdn.com/gift.svga</string>
+    <string name="demo_asset_hint">assets file name, for example demo.svga</string>
+    <string name="demo_play">Play</string>
+    <string name="demo_play_asset">Play Asset</string>
+    <string name="demo_pause">Pause</string>
+    <string name="demo_resume">Resume</string>
+    <string name="demo_stop">Stop</string>
+    <string name="demo_sample_note">URL playback uses BaseAnimationPlayerView to download and cache resources. Asset playback reads files from app/src/main/assets directly.</string>
+    <string-array name="demo_format_options">
+        <item>Auto</item>
+        <item>SVGA</item>
+        <item>PAG</item>
+        <item>VAP</item>
+    </string-array>
+</resources>
