@@ -23,7 +23,7 @@ import java.io.File
  * 就绪优先模式，适用场景：房间礼物
  * url1入列 正在下载，url2入列，如url2文件已有缓存或者比url1先下载成功，则先播放url2，待url1下载完成后播放url1。
  */
-class QueuedAnimationPlayerView @JvmOverloads constructor(
+open class QueuedAnimationPlayerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
