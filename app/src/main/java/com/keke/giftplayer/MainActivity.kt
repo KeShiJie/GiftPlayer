@@ -17,5 +17,9 @@ class MainActivity : AppCompatActivity(){
         findViewById<Button>(R.id.bt_gift).setOnClickListener {
             startActivity(Intent(this, GiftPlayerActivity::class.java))
         }
+
+        findViewById<Button>(R.id.bt_queue_gift).setOnClickListener {
+            startActivity(Intent(this, GiftQueuePlayerActivity::class.java))
+        }
     }
 }

@@ -30,8 +30,9 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.junit)
     api(libs.androidx.appcompat)
-    api(libs.filedownloader)
+    api(project(":lib_download"))
     api(libs.wire.runtime)
     api(libs.vap)
     api(libs.libpag)

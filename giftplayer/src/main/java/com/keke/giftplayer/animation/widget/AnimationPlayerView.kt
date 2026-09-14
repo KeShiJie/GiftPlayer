@@ -43,7 +43,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
     private var released = false
     private var pausedForVisibility = false
 
-    fun setCallback(callback: AnimationCallback?) {
+    open fun setCallback(callback: AnimationCallback?) {
         this.animationCallback = callback
     }
 

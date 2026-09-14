@@ -36,7 +36,22 @@ data class AnimationDownloadConfig(
 
     /** Whether library logging is enabled. */
     val isLogEnabled: Boolean = true,
+
+    /** Connection timeout for the default connection creator; existing connections are unchanged. */
+    val connectTimeoutMillis: Int = 20_000,
+
+    /** Read timeout for the default connection creator; custom creators own their timeout policy. */
+    val readTimeoutMillis: Int = 30_000,
+
+    /** Total time from download start, excluding time waiting for a concurrency slot. */
+    val downloadTimeoutMillis: Long = 180_000L,
 ) {
+    init {
+        require(connectTimeoutMillis > 0) { "connectTimeoutMillis must be positive." }
+        require(readTimeoutMillis > 0) { "readTimeoutMillis must be positive." }
+        require(downloadTimeoutMillis > 0) { "downloadTimeoutMillis must be positive." }
+    }
+
     companion object {
         const val DEFAULT_CACHE_DIR_NAME = "animation"
         const val DEFAULT_MAX_CONCURRENT_DOWNLOADS = 2

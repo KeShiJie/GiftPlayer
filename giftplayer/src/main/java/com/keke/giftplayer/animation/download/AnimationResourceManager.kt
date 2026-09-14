@@ -9,10 +9,15 @@ import com.liulishuo.filedownloader.BaseDownloadTask
 import com.liulishuo.filedownloader.FileDownloadListener
 import com.liulishuo.filedownloader.FileDownloader
 import com.liulishuo.filedownloader.util.FileDownloadUtils
+import com.joya.lib_download.FileDownloaderInitializer
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -27,9 +32,15 @@ object AnimationResourceManager {
     /** External callbacks are dispatched on the main thread so callers can update UI directly. */
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private val timeoutExecutor = ScheduledThreadPoolExecutor(1) { runnable ->
+        Thread(runnable, "animation-download-timeout").apply { isDaemon = true }
+    }.apply { removeOnCancelPolicy = true }
+
     /** Current configuration. Hosts can tune cache size and concurrency policy. */
+    @Volatile
     private var config = AnimationDownloadConfig()
 
+    @Volatile
     private var appContext: Context? = null
 
     /** Running tasks. A resourceKey can have only one real download task. */
@@ -40,14 +51,16 @@ object AnimationResourceManager {
 
     /** Initializes the download manager. Repeated calls update configuration and applicationContext. */
     @JvmStatic
-    fun init(context: Context, config: AnimationDownloadConfig = AnimationDownloadConfig()) {
+    fun init(context: Context, config: AnimationDownloadConfig = AnimationDownloadConfig()): Unit = synchronized(lock) {
         appContext = context.applicationContext
         this.config = config
         AnimationLog.setEnabled(config.isLogEnabled)
         SVGALogger.setLogEnabled(config.isLogEnabled)
         cacheDir().mkdirs()
         if (config.autoSetupFileDownloader) {
-            FileDownloaderInitializer.init(context)
+            FileDownloaderInitializer.init(
+                context, null, config.connectTimeoutMillis, config.readTimeoutMillis,
+            )
         }
         if (config.clearExpiredOnInit) {
             clearExpired()
@@ -214,22 +227,22 @@ object AnimationResourceManager {
                 override fun progress(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) = Unit
 
                 override fun completed(task: BaseDownloadTask?) {
-                    handleDownloadCompleted(download.resourceKey)
+                    handleDownloadCompleted(download)
                 }
 
                 override fun paused(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) {
                     handleDownloadError(
-                        resourceKey = download.resourceKey,
+                        running = download,
                         error = null,
                         removeCacheFile = false,
                         countFailure = false,
-                        reschedule = false,
+                        reschedule = true,
                     )
                 }
 
                 override fun error(task: BaseDownloadTask?, e: Throwable?) {
                     handleDownloadError(
-                        resourceKey = download.resourceKey,
+                        running = download,
                         error = e,
                         removeCacheFile = false,
                         countFailure = true,
@@ -239,7 +252,7 @@ object AnimationResourceManager {
 
                 override fun warn(task: BaseDownloadTask?) {
                     handleDownloadError(
-                        resourceKey = download.resourceKey,
+                        running = download,
                         error = null,
                         removeCacheFile = false,
                         countFailure = true,
@@ -261,16 +274,32 @@ object AnimationResourceManager {
                 )
                 .firstOrNull() ?: return
             next.state = DownloadState.Downloading
-            next.task = createDownloadTask(next)
-            next.task?.start()
+            try {
+                val task = createDownloadTask(next)
+                next.task = task
+                val timeoutMillis = config.downloadTimeoutMillis
+                next.timeout = timeoutExecutor.schedule({
+                    handleDownloadError(
+                        running = next,
+                        error = TimeoutException("Animation download timed out after $timeoutMillis ms."),
+                        removeCacheFile = false,
+                        countFailure = true,
+                        reschedule = true,
+                        pauseUnderlying = true,
+                    )
+                }, timeoutMillis, TimeUnit.MILLISECONDS)
+                task.start()
+            } catch (error: Exception) {
+                handleDownloadError(next, error, false, true, false, pauseUnderlying = true)
+            }
         }
     }
 
     /** Validates the downloaded file and broadcasts the result. */
-    private fun handleDownloadCompleted(resourceKey: String) {
-        val running = synchronized(lock) {
-            runningTasks.remove(resourceKey)
-        } ?: return
+    private fun handleDownloadCompleted(running: RunningDownload): Unit = synchronized(lock) {
+        if (runningTasks[running.resourceKey] !== running) return@synchronized
+        runningTasks.remove(running.resourceKey)
+        cancelTimeoutLocked(running)
         running.task = null
         val targetFile = running.targetFile
         val downloadFile = running.downloadFile
@@ -295,22 +324,23 @@ object AnimationResourceManager {
                 notifyError(entry.callback, entry.resource, error)
             }
         }
-        synchronized(lock) {
-            scheduleDownloadsLocked()
-        }
+        scheduleDownloadsLocked()
     }
 
     /** Broadcasts errors and cleans task state on failure, pause, or warning. */
     private fun handleDownloadError(
-        resourceKey: String,
+        running: RunningDownload,
         error: Throwable?,
         removeCacheFile: Boolean,
         countFailure: Boolean,
         reschedule: Boolean,
-    ) {
-        val running = synchronized(lock) {
-            runningTasks.remove(resourceKey)
-        } ?: return
+        pauseUnderlying: Boolean = false,
+    ): Unit = synchronized(lock) {
+        if (runningTasks[running.resourceKey] !== running) return@synchronized
+        runningTasks.remove(running.resourceKey)
+        cancelTimeoutLocked(running)
+        // Remove identity before pause: the downloader may synchronously deliver its paused callback.
+        if (pauseUnderlying) pauseDownloadLocked(running)
         running.task = null
         if (removeCacheFile) running.targetFile.delete()
         if (countFailure) {
@@ -325,9 +355,18 @@ object AnimationResourceManager {
             notifyError(entry.callback, entry.resource, error)
         }
         if (reschedule) {
-            synchronized(lock) {
-                scheduleDownloadsLocked()
-            }
+            scheduleDownloadsLocked()
+        }
+    }
+
+    private fun cancelTimeoutLocked(running: RunningDownload) {
+        running.timeout?.cancel(false)
+        running.timeout = null
+    }
+
+    private fun pauseDownloadLocked(running: RunningDownload) {
+        runCatching { running.task?.pause() }.onFailure {
+            AnimationLog.e("download pause failed: ${it.javaClass.simpleName}")
         }
     }
 
@@ -756,6 +795,7 @@ object AnimationResourceManager {
         val sequence = nextSequence()
         val callbacks = ConcurrentHashMap<String, DownloadCallbackEntry>()
         var task: BaseDownloadTask? = null
+        var timeout: ScheduledFuture<*>? = null
         var state: DownloadState = DownloadState.Queued
     }
 
@@ -779,10 +819,11 @@ object AnimationResourceManager {
         override fun cancel() {
             synchronized(lock) {
                 val running = runningTasks[resourceKey] ?: return
-                running.callbacks.remove(callbackKey)
+                if (running.callbacks.remove(callbackKey) == null) return
                 if (running.callbacks.isEmpty()) {
                     runningTasks.remove(resourceKey)
-                    running.task?.pause()
+                    cancelTimeoutLocked(running)
+                    pauseDownloadLocked(running)
                     running.task = null
                     AnimationLog.i("download cancel requested: ${running.targetFile.name}")
                     scheduleDownloadsLocked()

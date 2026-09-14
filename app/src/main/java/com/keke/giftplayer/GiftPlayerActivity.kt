@@ -43,6 +43,8 @@ class GiftPlayerActivity : AppCompatActivity() {
         bindViews()
         bindPlayerCallback()
         bindActions()
+
+        assetInput.setText("test1.mp4")
     }
 
     override fun onDestroy() {

@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/bt_gift"
-        android:layout_gravity="center_vertical"
         android:layout_width="match_parent"
-        android:text="start gift Player"
-        android:layout_height="50dp"/>
+        android:layout_height="50dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginTop="20dp"
+        android:text="start gift Player" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/bt_queue_gift"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginTop="20dp"
+        android:text="start gift queue player" />
 
 </LinearLayout>
