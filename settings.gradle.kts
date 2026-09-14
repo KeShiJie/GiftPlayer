@@ -26,3 +26,4 @@ rootProject.name = "GiftPlayer"
 include(":app")
 include(":giftplayer")
 include(":lib_download")
+include(":filedownloader")

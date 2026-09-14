@@ -38,10 +38,21 @@ dependencyResolutionManagement {
 Add the dependency:
 
 ```kotlin
-implementation("com.github.KeShiJie.GiftPlayer:giftplayer:1.0.0")
+implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v1.0.1")
 ```
 
-Replace `1.0.0` with the GitHub release tag you want to use.
+Replace `v1.0.1` with the exact GitHub release tag you want to use, including its `v` prefix.
+The `lib_download` and `filedownloader` artifacts are resolved transitively.
+
+For local publication verification, run:
+
+```bash
+./gradlew -PreleaseVersion=v1.0.1 :filedownloader:publishToMavenLocal :lib_download:publishToMavenLocal :giftplayer:publishToMavenLocal
+```
+
+JitPack publishes all three artifacts through `jitpack.yml`. Publish fixes with a
+new tag instead of moving an existing release tag. The build uses `releaseVersion`
+when supplied, otherwise JitPack's `VERSION`, with `v1.0.1` as the local default.
 
 ## Initialize
 

@@ -1,10 +1,17 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
 }
 
 android {
     namespace 'com.joya.lib_download'
     compileSdk 36
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
 
     defaultConfig {
         minSdk 24
@@ -19,5 +26,16 @@ android {
 }
 
 dependencies {
-    api fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+    api project(':filedownloader')
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            groupId = project.group.toString()
+            artifactId = 'lib_download'
+            version = project.version.toString()
+            afterEvaluate { from components.release }
+        }
+    }
 }

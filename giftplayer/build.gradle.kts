@@ -44,9 +44,9 @@ dependencies {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "com.github.keke"
+            groupId = project.group.toString()
             artifactId = "giftplayer"
-            version = "1.0.0"
+            version = project.version.toString()
 
             afterEvaluate {
                 from(components["release"])
