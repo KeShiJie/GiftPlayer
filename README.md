@@ -1,10 +1,28 @@
+
 # GiftPlayer
 
 An Android animation and room effects library for gift animations, interactive room widgets, and SVGA/PAG/VAP playback.
 
+GiftPlayer provides a unified player view for multiple animation formats, with remote URL downloading, batch preloading, local assets playback, cache management, download priority scheduling, and simple APIs for gift animation scenarios.
+
+## Features
+
+- Supports SVGA, PAG, and VAP animation playback
+- Unified `GiftAnimationPlayerView` API
+- Remote URL playback with download and cache support
+- Local assets playback
+- Batch download and preload support
+- Download priority scheduling
+- Same-resource download reuse
+- Multiple callback merging for the same downloading resource
+- Configurable cache directory, cache size, cache age, and concurrent downloads
+- Resume download support
+- Optional audio playback
+- Demo app included
+
 ## Install
 
-Add JitPack to the consuming project:
+Add JitPack to your project:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -17,21 +35,23 @@ dependencyResolutionManagement {
 }
 ```
 
-Add the library dependency:
+Add the dependency:
 
 ```kotlin
-implementation("com.github.<github-user>.GiftPlayer:giftplayer:1.0.0")
+implementation("com.github.KeShiJie.GiftPlayer:giftplayer:1.0.0")
 ```
 
-Replace `<github-user>` and `1.0.0` with your GitHub username and release tag.
+Replace `1.0.0` with the GitHub release tag you want to use.
 
 ## Initialize
+
+Initialize the library before playing remote animations:
 
 ```kotlin
 AnimationInitializer.init(applicationContext)
 ```
 
-Custom download config:
+Custom download configuration:
 
 ```kotlin
 AnimationInitializer.init(
@@ -46,7 +66,16 @@ AnimationInitializer.init(
 )
 ```
 
-## Play URL
+## Play Remote URL
+
+```kotlin
+playerView.playGift(
+    animationUrl = "https://s1.videocc.net/default-img/donate-svga/diamond.svga",
+    priority = AnimationDownloadPriority.Highest,
+)
+```
+
+With callback:
 
 ```kotlin
 playerView.play(
@@ -56,9 +85,18 @@ playerView.play(
 )
 ```
 
-## Play Asset
+## Play Local Asset
 
-Put the animation file in `src/main/assets`, then play it:
+Put the animation file in your app's `src/main/assets` directory.
+
+```kotlin
+playerView.playGift(
+    source = AnimationSource.Asset("say_hi.pag"),
+    format = AnimationFormat.Pag,
+)
+```
+
+## Advanced Playback
 
 ```kotlin
 playerView.play(
