@@ -4,46 +4,46 @@ import java.io.File
 
 /**
  * Created by keke on 2026/06/23.
- * Desc: Animation resource download configuration.
+ * Desc: 动画资源下载配置。
  */
 data class AnimationDownloadConfig(
-    /** Custom animation cache directory. Uses application cacheDir/cacheDirName when null. */
+    /** 自定义动画缓存目录；为 null 时使用应用 cacheDir 下的 cacheDirName 目录。 */
     val customCacheDir: File? = null,
 
-    /** Default cache directory name, used only when customCacheDir is null. */
+    /** 默认缓存目录名，仅在 customCacheDir 为 null 时生效。 */
     val cacheDirName: String = DEFAULT_CACHE_DIR_NAME,
 
-    /** Maximum animation cache size. Old entries are evicted when this limit is exceeded. */
+    /** 动画缓存容量上限，单位为字节，默认 300 MiB；超过上限时清理可删除的旧缓存。 */
     val maxCacheSizeBytes: Long = DEFAULT_MAX_CACHE_SIZE_BYTES,
 
-    /** Maximum cache age before an entry can be cleaned. */
+    /** 缓存过期清理阈值，单位为毫秒，默认 30 天。 */
     val maxCacheAgeMillis: Long = DEFAULT_MAX_CACHE_AGE_MILLIS,
 
-    /** Maximum number of concurrent downloads. */
+    /** 最大并发下载数量，默认 2；其余任务按优先级排队。 */
     val maxConcurrentDownloads: Int = DEFAULT_MAX_CONCURRENT_DOWNLOADS,
 
-    /** Whether expired and oversized cache entries should be cleaned on init. */
+    /** 是否在初始化时清理过期缓存及超出容量上限的缓存。 */
     val clearExpiredOnInit: Boolean = true,
 
-    /** Whether FileDownloader resumable download is enabled. */
+    /** 是否启用 FileDownloader 断点续传，默认开启。 */
     val enableResumeDownload: Boolean = true,
 
-    /** Clears partial files after this many consecutive resume failures for the same resource. */
+    /** 同一资源连续续传失败达到此次数后清理临时文件，默认 3 次；不是自动重试次数。 */
     val maxResumableFailureCount: Int = DEFAULT_MAX_RESUMABLE_FAILURE_COUNT,
 
-    /** Whether FileDownloader should be initialized with the animation library. */
+    /** 是否随动画库自动初始化 FileDownloader；关闭后需由调用方负责初始化。 */
     val autoSetupFileDownloader: Boolean = true,
 
-    /** Whether library logging is enabled. */
+    /** 是否开启动画库日志，默认开启。 */
     val isLogEnabled: Boolean = true,
 
-    /** Connection timeout for the default connection creator; existing connections are unchanged. */
+    /** 默认连接工厂的连接超时，单位为毫秒，默认 20 秒，必须大于 0；不影响已建立的连接。 */
     val connectTimeoutMillis: Int = 20_000,
 
-    /** Read timeout for the default connection creator; custom creators own their timeout policy. */
+    /** 默认连接工厂等待读取数据的超时，单位为毫秒，默认 30 秒，必须大于 0；自定义连接工厂自行配置。 */
     val readTimeoutMillis: Int = 30_000,
 
-    /** Total time from download start, excluding time waiting for a concurrency slot. */
+    /** 单次下载总超时，单位为毫秒，默认 180 秒，必须大于 0；从启动下载开始计时，不含排队时间。 */
     val downloadTimeoutMillis: Long = 180_000L,
 ) {
     init {

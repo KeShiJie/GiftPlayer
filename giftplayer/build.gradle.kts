@@ -29,6 +29,12 @@ android {
     }
 }
 
+tasks.withType<Jar>().configureEach {
+    if (name == "sourceReleaseJar") {
+        include("com/keke/giftplayer/animation/download/AnimationDownloadConfig.kt")
+    }
+}
+
 dependencies {
     testImplementation(libs.junit)
     api(libs.androidx.appcompat)
