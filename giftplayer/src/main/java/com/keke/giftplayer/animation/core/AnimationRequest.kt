@@ -2,16 +2,16 @@ package com.keke.giftplayer.animation.core
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation playback request.
+ * Desc: 动画播放请求。
  *
- * @property source Animation source, supports URL, local file, and assets.
- * @property format Animation format, auto-detected by default.
- * @property loopCount Loop count.
- * @property autoPlay Whether playback starts automatically after load.
- * @property scaleType Animation scaling mode.
- * @property fillMode Frame fill mode after playback ends.
- * @property enableAudio Whether embedded audio is enabled.
- * @property pauseWhenInvisible Whether playback pauses when the view becomes invisible.
+ * @property source 动画资源来源，支持远程 URL、本地文件和 assets。
+ * @property format 动画格式，默认根据文件扩展名自动识别；无扩展名时建议显式指定。
+ * @property loopCount 播放次数，默认播放 1 次。
+ * @property autoPlay 是否在加载完成后自动播放，默认开启。
+ * @property scaleType 动画缩放模式，默认等比例缩放并居中显示。
+ * @property fillMode 播放结束后的画面保留方式，默认保留最后一帧；当前仅 SVGA 适配器使用。
+ * @property enableAudio 是否播放动画内置音频，默认开启；当前仅 VAP 适配器使用此开关。
+ * @property pauseWhenInvisible View 不可见时是否暂停播放，默认关闭。
  */
 data class AnimationRequest(
     val source: AnimationSource,

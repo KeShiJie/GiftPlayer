@@ -1,6 +1,7 @@
 package com.keke.giftplayer.animation.core
 
 import android.util.Log
+import com.keke.giftplayer.gift.svga.utils.log.SVGALogger
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 
 /**
@@ -10,31 +11,69 @@ import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 object AnimationLog {
     const val TAG = "AnimationPlayer"
     @Volatile
-    private var enabled = true
+    private var logcatEnabled = false
 
+    @Volatile
+    private var listener: AnimationLogListener? = null
+
+    private val dispatching = ThreadLocal<Boolean>()
+
+    /** 设置全局日志监听器；传 null 移除。监听器异常不会中断播放或下载。 */
+    @JvmStatic
+    fun setListener(value: AnimationLogListener?) {
+        listener = value
+    }
+
+    /** 控制 Logcat 输出，默认关闭，始终不影响监听器。 */
+    @JvmStatic
+    fun setLogcatEnabled(value: Boolean) {
+        logcatEnabled = value
+        SVGALogger.setLogEnabled(value)
+    }
+
+    /** 控制 Logcat 输出；初始化时使用 isLogEnabled 配置此值，不影响监听器。 */
     @JvmStatic
     fun setEnabled(value: Boolean) {
-        enabled = value
+        setLogcatEnabled(value)
     }
 
-    @JvmStatic
-    fun isEnabled(): Boolean {
-        return enabled
-    }
+    internal fun hasListener(): Boolean = listener != null
 
     fun i(message: String) {
-        if (!enabled) return
-        Log.i(TAG, message)
+        log(Log.INFO, TAG, message)
     }
 
     fun w(message: String) {
-        if (!enabled) return
-        Log.w(TAG, message)
+        log(Log.WARN, TAG, message)
     }
 
     fun e(message: String) {
-        if (!enabled) return
-        Log.e(TAG, message)
+        log(Log.ERROR, TAG, message)
+    }
+
+    fun e(message: String, throwable: Throwable?) {
+        log(Log.ERROR, TAG, message, throwable)
+    }
+
+    /** 统一转发日志ç */
+    @JvmStatic
+    @JvmOverloads
+    fun log(level: Int, tag: String, message: String, throwable: Throwable? = null) {
+        if (dispatching.get() == true) return
+        if (logcatEnabled) {
+            val text = if (throwable == null) message else "$message\n${Log.getStackTraceString(throwable)}"
+            Log.println(level, tag, text)
+        }
+        val currentListener = listener ?: return
+        // 避免业务日志桥接回动画库时产生递归；线程之间互不影响。
+        dispatching.set(true)
+        try {
+            currentListener.onLog(level, tag, message, throwable)
+        } catch (_: Exception) {
+            // 日志接收失败不影响动画流程，也不再次调用监听器报告错误。
+        } finally {
+            dispatching.remove()
+        }
     }
 
     fun sourceType(source: AnimationSource): String {

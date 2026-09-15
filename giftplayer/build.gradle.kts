@@ -33,10 +33,14 @@ android {
 
 tasks.withType<Jar>().configureEach {
     if (name == "sourceReleaseJar") {
+        include("com/keke/giftplayer/animation/AnimationInitializer.kt")
+        include("com/keke/giftplayer/animation/core/AnimationLog.kt")
+        include("com/keke/giftplayer/animation/core/AnimationLogListener.kt")
         include("com/keke/giftplayer/animation/download/AnimationDownloadConfig.kt")
         include("com/keke/giftplayer/animation/download/AnimationResourceManager.kt")
         include("com/keke/giftplayer/animation/widget/BaseAnimationPlayerView.kt")
         include("com/keke/giftplayer/animation/widget/QueuedAnimationPlayerView.kt")
+        include("com/keke/giftplayer/animation/core/AnimationRequest.kt")
     }
 }
 

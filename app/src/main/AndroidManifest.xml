@@ -26,6 +26,7 @@
 
         <activity android:name=".GiftPlayerActivity"/>
         <activity android:name=".GiftQueuePlayerActivity"/>
+        <activity android:name=".BatchDownloadActivity"/>
     </application>
 
 </manifest>

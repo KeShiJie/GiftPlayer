@@ -34,9 +34,6 @@ data class AnimationDownloadConfig(
     /** 是否随动画库自动初始化 FileDownloader；关闭后需由调用方负责初始化。 */
     val autoSetupFileDownloader: Boolean = true,
 
-    /** 是否开启动画库日志，默认开启。 */
-    val isLogEnabled: Boolean = true,
-
     /** 默认连接工厂的连接超时，单位为毫秒，默认 20 秒，必须大于 0；不影响已建立的连接。 */
     val connectTimeoutMillis: Int = 20_000,
 

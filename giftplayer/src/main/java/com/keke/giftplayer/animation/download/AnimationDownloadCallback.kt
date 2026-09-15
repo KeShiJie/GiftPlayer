@@ -7,6 +7,9 @@ import java.io.File
  * Desc: Animation resource download callback.
  */
 interface AnimationDownloadCallback {
+    /** 主线程下载进度；totalBytes <= 0 表示总大小未知，缓存命中可能直接回调成功。 */
+    fun onProgress(resource: AnimationResource, downloadedBytes: Long, totalBytes: Long) {}
+
     /** Called when the resource hits cache or downloads successfully. */
     fun onSuccess(resource: AnimationResource, file: File)
 

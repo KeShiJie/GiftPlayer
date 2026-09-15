@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.keke.giftplayer.animation.core.AnimationLog
-import com.keke.giftplayer.gift.svga.utils.log.SVGALogger
 import com.liulishuo.filedownloader.BaseDownloadTask
 import com.liulishuo.filedownloader.FileDownloadListener
 import com.liulishuo.filedownloader.FileDownloader
@@ -54,8 +53,6 @@ object AnimationResourceManager {
     fun init(context: Context, config: AnimationDownloadConfig = AnimationDownloadConfig()): Unit = synchronized(lock) {
         appContext = context.applicationContext
         this.config = config
-        AnimationLog.setEnabled(config.isLogEnabled)
-        SVGALogger.setLogEnabled(config.isLogEnabled)
         cacheDir().mkdirs()
         if (config.autoSetupFileDownloader) {
             FileDownloaderInitializer.init(
@@ -224,7 +221,9 @@ object AnimationResourceManager {
             .setListener(object : FileDownloadListener() {
                 override fun pending(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) = Unit
 
-                override fun progress(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) = Unit
+                override fun progress(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) {
+                    notifyProgress(download, soFarBytes.toLong(), totalBytes.toLong())
+                }
 
                 override fun completed(task: BaseDownloadTask?) {
                     handleDownloadCompleted(download)
@@ -350,7 +349,7 @@ object AnimationResourceManager {
                 AnimationLog.e("download resumable cache cleared: ${running.targetFile.name}, failures=$failureCount")
             }
         }
-        AnimationLog.e("download failed: ${running.targetFile.name}, error=${error?.message.orEmpty()}")
+        AnimationLog.e("download failed: ${running.targetFile.name}, error=${error?.message.orEmpty()}", error)
         running.callbacks.values.forEach { entry ->
             notifyError(entry.callback, entry.resource, error)
         }
@@ -366,7 +365,7 @@ object AnimationResourceManager {
 
     private fun pauseDownloadLocked(running: RunningDownload) {
         runCatching { running.task?.pause() }.onFailure {
-            AnimationLog.e("download pause failed: ${it.javaClass.simpleName}")
+            AnimationLog.e("download pause failed: ${it.javaClass.simpleName}", it)
         }
     }
 
@@ -651,6 +650,28 @@ object AnimationResourceManager {
     /** 断点续传失败次数阈值，最小为 1。 */
     private fun maxResumableFailureCount(): Int {
         return maxOf(1, config.maxResumableFailureCount)
+    }
+
+    /** 主线程分发进度，并过滤已经完成、取消或被替换的下载。 */
+    private fun notifyProgress(running: RunningDownload, downloadedBytes: Long, totalBytes: Long) {
+        runOnMain {
+            val entries = synchronized(lock) {
+                if (runningTasks[running.resourceKey] !== running) return@runOnMain
+                running.callbacks.toMap()
+            }
+            entries.forEach { (key, entry) ->
+                val active = synchronized(lock) {
+                    runningTasks[running.resourceKey] === running && running.callbacks[key] === entry
+                }
+                if (active) {
+                    runCatching {
+                        entry.callback.onProgress(entry.resource, downloadedBytes, totalBytes)
+                    }.onFailure {
+                        AnimationLog.e("download progress callback failed", it)
+                    }
+                }
+            }
+        }
     }
 
     /** 在主线程分发成功回调，全部回调结束后执行清理。 */

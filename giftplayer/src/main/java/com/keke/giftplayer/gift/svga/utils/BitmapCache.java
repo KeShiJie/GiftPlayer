@@ -51,9 +51,7 @@ public class BitmapCache {
         references.remove(relatedKey);
         // Release bitmap resource when no references remain.
         if (references.isEmpty()) {
-            if (AnimationLog.isEnabled()) {
-                Log.d("SVGA-clear","release svga bitmap");
-            }
+            AnimationLog.log(Log.DEBUG, "SVGA-clear", "release svga bitmap");
             bitmap = null;
         }
     }

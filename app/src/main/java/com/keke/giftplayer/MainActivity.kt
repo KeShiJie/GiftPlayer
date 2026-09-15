@@ -21,5 +21,8 @@ class MainActivity : AppCompatActivity(){
         findViewById<Button>(R.id.bt_queue_gift).setOnClickListener {
             startActivity(Intent(this, GiftQueuePlayerActivity::class.java))
         }
+        findViewById<Button>(R.id.bt_batch_download).setOnClickListener {
+            startActivity(Intent(this, BatchDownloadActivity::class.java))
+        }
     }
 }

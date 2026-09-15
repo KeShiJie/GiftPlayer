@@ -18,7 +18,7 @@ import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.core.AnimationSource
 import com.keke.giftplayer.animation.download.AnimationDownloadConfig
 import com.keke.giftplayer.animation.download.AnimationDownloadPriority
-import com.keke.giftplayer.animation.download.AnimationResourceManager
+import com.keke.giftplayer.animation.AnimationInitializer
 import com.keke.giftplayer.animation.widget.BaseAnimationPlayerView
 
 /**
@@ -36,9 +36,10 @@ class GiftPlayerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_gift_player)
-        AnimationResourceManager.init(
+        AnimationInitializer.init(
             context = applicationContext,
-            config = AnimationDownloadConfig(),
+            downloadConfig = AnimationDownloadConfig(),
+            isLogEnabled = true,
         )
         bindViews()
         bindPlayerCallback()

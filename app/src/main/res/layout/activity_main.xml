@@ -20,4 +20,11 @@
         android:layout_marginTop="20dp"
         android:text="start gift queue player" />
 
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/bt_batch_download"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="20dp"
+        android:text="批量下载示例" />
+
 </LinearLayout>

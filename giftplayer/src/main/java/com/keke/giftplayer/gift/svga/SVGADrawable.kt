@@ -110,9 +110,7 @@ class SVGADrawable(val videoItem: SVGAVideoEntity, val dynamicItem: SVGADynamicE
      * Clears bitmap-backed frame objects.
      */
     fun clearFrameObjects(){
-        if (AnimationLog.isEnabled()) {
-            Log.e("SVGA-clear", "SVGADrawable release")
-        }
+        AnimationLog.log(Log.ERROR, "SVGA-clear", "SVGADrawable release")
         videoItem.clear()
     }
 

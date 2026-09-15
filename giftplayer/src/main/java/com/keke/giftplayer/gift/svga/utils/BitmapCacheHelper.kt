@@ -142,9 +142,7 @@ object BitmapCacheHelper {
             }
         }
         relatedList.remove(relatedKey)
-        if (AnimationLog.isEnabled()) {
-            Log.i("SVGA-clear", "release, remaining cache relations: " + relatedList.size)
-        }
+        AnimationLog.log(Log.INFO, "SVGA-clear", "release, remaining cache relations: " + relatedList.size)
     }
 
     /**
