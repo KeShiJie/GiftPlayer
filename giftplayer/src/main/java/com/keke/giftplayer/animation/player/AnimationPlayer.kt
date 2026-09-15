@@ -6,7 +6,7 @@ import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation player adapter interface.
+ * Desc: 动画播放器适配器接
  */
 internal interface AnimationPlayer {
     val view: View

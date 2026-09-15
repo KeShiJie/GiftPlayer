@@ -4,7 +4,7 @@ import java.util.ArrayDeque
 
 /**
  * Created by keke on 2026/09/14.
- * Desc: Single-threaded, identity-based queue ordered by resource readiness.
+ * Desc:按资源就绪状态排序。
  */
 internal class ReadyPlaybackQueue<T> {
     class Entry<T>(val value: T, val enqueuedAt: Long, val ttlMillis: Long?) {

@@ -4,7 +4,7 @@ import com.keke.giftplayer.animation.core.AnimationError
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation source resolve callback.
+ * Desc: 动画源解析回调
  */
 interface AnimationSourceResolveCallback {
     fun onSuccess(source: ResolvedAnimationSource)

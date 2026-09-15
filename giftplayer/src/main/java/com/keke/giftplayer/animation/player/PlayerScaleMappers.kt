@@ -7,7 +7,6 @@ import org.libpag.PAGScaleMode
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Player scale mode mappers.
  */
 internal fun AnimationScaleType.toImageScaleType(): ImageView.ScaleType {
     return when (this) {

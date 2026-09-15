@@ -15,7 +15,7 @@ import org.libpag.PAGView
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: PAG animation player adapter.
+ * Desc:PAG动画播放器。
  */
 internal class PagAnimationPlayer(
     context: Context,

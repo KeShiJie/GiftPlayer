@@ -6,7 +6,6 @@ import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation playback logger.
  */
 object AnimationLog {
     const val TAG = "AnimationPlayer"

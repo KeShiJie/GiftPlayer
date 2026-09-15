@@ -4,7 +4,7 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation format detector.
+ * Desc: 动画格式检测
  */
 object AnimationFormatDetector {
     fun detect(explicitFormat: AnimationFormat, source: ResolvedAnimationSource): AnimationFormat {

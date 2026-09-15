@@ -7,7 +7,7 @@ import java.io.File
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Animation source resolver.
+ * Desc: 动画源解析器
  */
 class AnimationSourceResolver {
     fun resolve(

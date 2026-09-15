@@ -16,7 +16,7 @@ import java.io.File
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: VAP animation player adapter.
+ * Desc: VAP
  */
 internal class VapAnimationPlayer(
     context: Context,

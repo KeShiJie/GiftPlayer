@@ -4,7 +4,7 @@ import com.keke.giftplayer.animation.core.AnimationError
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Internal animation player callback.
+ * Desc: 内部动画播放器回调。
  */
 internal interface AnimationPlayerCallback {
     fun onReady()

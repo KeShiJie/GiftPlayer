@@ -25,7 +25,7 @@ import com.keke.giftplayer.animation.player.VapAnimationPlayer
 
 /**
  * Created by keke on 2026/4/16.
- * Desc: Unified animation player view.
+ * Desc: 统一动画播放器视图
  */
 open class AnimationPlayerView @JvmOverloads constructor(
     context: Context,

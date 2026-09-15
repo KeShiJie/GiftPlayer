@@ -4,27 +4,24 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 
 /**
  * Created by keke on 2026/06/23.
- * Desc: Animation resource descriptor.
+ * Desc: 动画资源
  */
 data class AnimationResource(
-    /** Stable business resource id, such as a gift id, campaign animation id, or avatar frame id. */
+    /** 稳定的业务资源 ID，例如礼品 ID、活动动画 ID 或头像框 ID. */
     val id: String? = null,
 
-    /** Actual download URL. */
     val url: String,
 
-    /** Resource version, used to distinguish revisions of the same id. */
+    /** 资源版本，用于区分同一 ID 的不同版本. */
     val version: String? = null,
 
-    /** File MD5. When provided by the server, downloaded files must match it. */
+    /** 文件MD5值。如果服务器提供 */
     val md5: String? = null,
 
-    /** Animation format, used to detect extensionless URLs. */
     val format: AnimationFormat = AnimationFormat.Auto,
 
-    /** Resource category, such as gift, room, or common. */
+    /** 资源类别，例如礼物、房间或公共区域。 */
     val category: String? = null,
 
-    /** Download priority. */
     val priority: AnimationDownloadPriority,
 )
