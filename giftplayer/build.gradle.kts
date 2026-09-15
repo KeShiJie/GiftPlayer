@@ -1,3 +1,5 @@
+import org.gradle.api.publish.tasks.GenerateModuleMetadata
+
 plugins {
     alias(libs.plugins.android.library)
     id("maven-publish")
@@ -33,6 +35,11 @@ tasks.withType<Jar>().configureEach {
     if (name == "sourceReleaseJar") {
         include("com/keke/giftplayer/animation/download/AnimationDownloadConfig.kt")
     }
+}
+
+// Use Maven's standard -sources.jar lookup to avoid JitPack source URL rewriting.
+tasks.withType<GenerateModuleMetadata>().configureEach {
+    enabled = false
 }
 
 dependencies {
