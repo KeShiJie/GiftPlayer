@@ -84,12 +84,12 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
         runOnMain { if (!disposed) this.callback = callback }
     }
 
-    /** Configuration is captured when a message is enqueued. */
+    /** 消息入队时保存当前配置。 */
     fun setQueueConfig(config: AnimationQueueConfig) {
         runOnMain { if (!disposed) this.config = config }
     }
 
-    /** On this view, play appends a message just like enqueue. */
+    /** 此播放器的 play 与 enqueue 一样，都会追加播放消息。 */
     override fun play(request: AnimationRequest) = enqueue(request)
 
     fun enqueue(request: AnimationRequest) {
@@ -112,7 +112,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
         }
     }
 
-    /** Clears only messages that have not started loading into the player. */
+    /** 仅清除尚未开始加载到播放器的消息。 */
     fun clearQueue() {
         runOnMain {
             val removed = queue.clearWaiting()
@@ -145,14 +145,14 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
             if (disposed) return@runOnMain
             val removed = queue.clearWaiting().toMutableList()
             queue.current?.let { queue.remove(it); removed.add(0, it) }
-            // Invalidate the queue first: the parent may synchronously emit onCancel.
+            // 先使队列状态失效，父类可能同步触发 onCancel 回调。
             super.stop(clear)
             removed.forEach { clean(it.value) }
             removed.forEach { entry -> notifyClient { onCancel(entry.value.original) } }
         }
     }
 
-    /** Release is terminal. Calls queued from other threads are ignored afterwards. */
+    /** 释放后不可再使用；其他线程已排队的调用也会被忽略。 */
     override fun release() {
         runOnMain {
             if (disposed) return@runOnMain
@@ -197,7 +197,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
                 }
             },
         )
-        // Cache hits and validation errors can complete before download returns.
+        // 缓存命中或校验失败时，回调可能先于 download 返回执行。
         if (queue.isWaiting(entry) && !message.prepared && !disposed) message.download = task
         else task.cancel()
     }
@@ -258,7 +258,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
 
     private fun postPlaybackEvent(request: AnimationRequest, event: () -> Unit) {
         if (disposed) return
-        // Some engines notify onStart before starting; client mutations must run afterwards.
+        // 部分引擎在实际启动前回调 onStart，调用方的状态修改需要延后执行。
         handler.post {
             if (!disposed && queue.current?.value?.playback === request) event()
         }

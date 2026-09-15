@@ -14,7 +14,7 @@ import java.io.File
 
 /**
  * Created by keke on 2026/06/18.
- * Desc: Base animation player view with URL download support.
+ * Desc: 支持 URL 下载的基础动画播放器。 适合普通播放场景
  */
 open class BaseAnimationPlayerView @JvmOverloads constructor(
     context: Context,
@@ -22,18 +22,18 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : AnimationPlayerView(context, attrs, defStyleAttr) {
 
-    /** Download wait handle for the current caller. Canceling it does not necessarily cancel the shared download. */
+    /** 当前调用方的下载等待句柄；取消等待不一定会取消共享下载。 */
     private var downloadTask: AnimationDownloadTask? = null
 
-    /** Cached file currently used for playback. It is unprotected when playback stops or switches resources. */
+    /** 当前播放使用的缓存文件；停止播放或切换资源时解除保护。 */
     private var protectedPlaybackFile: File? = null
 
-    /** Download request sequence. Used to ignore stale callbacks. */
+    /** 下载请求序号，用于忽略过期回调。 */
     private var downloadRequestId = 0L
 
     /**
-     *  Plays animation. URL sources are downloaded first; file and asset sources are passed to the parent flow.
-     *  @param request Animation request.
+     *  播放动画：URL 资源先下载，本地文件和 Asset 资源交给父类处理。
+     *  @param request 动画播放请求。
      */
     override fun play(request: AnimationRequest) {
         if (!isMainThread()) {
@@ -42,7 +42,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         }
         cancelDownload()
         releaseProtectedPlaybackFile()
-        // URL sources need the download flow.
+        // URL 资源需要先经过下载流程。
         val source = request.source
         if (source is AnimationSource.Url) {
             playUrl(request, source.url, source.priority)
@@ -51,7 +51,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         }
     }
 
-    // Stops current playback and cancels any pending download.
+    // 停止当前播放并取消下载等待。
     override fun stop(clear: Boolean) {
         if (!isMainThread()) {
             runOnMain { stop(clear) }
@@ -62,7 +62,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         super.stop(clear)
     }
 
-    /** Releases the player view, cancels download, and unprotects the current cached file. */
+    /** 释放播放器、取消下载等待，并解除当前缓存文件的保护。 */
     override fun release() {
         if (!isMainThread()) {
             runOnMain { release() }
@@ -73,9 +73,9 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         super.release()
     }
 
-    /** Fetches a URL resource through the download manager, then plays it as a local file. */
+    /** 通过下载管理器获取 URL 资源，再以本地文件形式播放。 */
     private fun playUrl(request: AnimationRequest, url: String, priority: com.keke.giftplayer.animation.download.AnimationDownloadPriority) {
-        // Callbacks must match this request id before continuing.
+        // 回调必须匹配当前请求序号才继续处理。
         val currentId = nextDownloadRequestId()
         clearPlaybackForNewRequest()
         animationCallback?.onLoadStart(request)
@@ -116,7 +116,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         )
     }
 
-    /** Wraps the downloaded file as a FilePath source and passes it to the shared playback flow. */
+    /** 将下载文件包装为 FilePath 资源，交给通用播放流程。 */
     private fun playDownloadedFile(
         currentId: Long,
         request: AnimationRequest,
@@ -127,7 +127,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         super.play(request.copy(source = AnimationSource.FilePath(file.absolutePath)))
     }
 
-    /** Dispatches download-stage errors. Only the current request can notify callbacks. */
+    /** 分发下载阶段的错误，仅允许当前请求触发回调。 */
     private fun dispatchDownloadError(
         currentId: Long,
         request: AnimationRequest,
@@ -138,7 +138,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         animationCallback?.onError(request, error)
     }
 
-    /** Cancels the current download wait and invalidates stale callbacks. */
+    /** 取消当前下载等待，并使旧回调失效。 */
     private fun cancelDownload() {
         downloadRequestId += 1
         downloadTask?.let {
@@ -148,25 +148,25 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         downloadTask = null
     }
 
-    /** Creates a new download request id. */
+    /** 生成新的下载请求序号。 */
     private fun nextDownloadRequestId(): Long {
         downloadRequestId += 1
         return downloadRequestId
     }
 
-    /** Returns whether the callback belongs to the current download request. */
+    /** 判断回调是否属于当前下载请求。 */
     private fun isCurrentDownload(currentId: Long): Boolean {
         return currentId == downloadRequestId
     }
 
-    /** Protects the current playback file from cache cleanup. */
+    /** 保护当前播放文件，避免被缓存清理删除。 */
     private fun protectPlaybackFile(file: File) {
         releaseProtectedPlaybackFile()
         protectedPlaybackFile = file
         AnimationResourceManager.protectFile(file)
     }
 
-    /** Removes current playback file protection so later cleanup can evict it by LRU policy. */
+    /** 解除当前播放文件的保护，允许后续按最近使用时间清理。 */
     private fun releaseProtectedPlaybackFile() {
         protectedPlaybackFile?.let(AnimationResourceManager::unprotectFile)
         protectedPlaybackFile = null

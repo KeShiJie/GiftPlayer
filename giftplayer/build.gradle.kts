@@ -34,6 +34,9 @@ android {
 tasks.withType<Jar>().configureEach {
     if (name == "sourceReleaseJar") {
         include("com/keke/giftplayer/animation/download/AnimationDownloadConfig.kt")
+        include("com/keke/giftplayer/animation/download/AnimationResourceManager.kt")
+        include("com/keke/giftplayer/animation/widget/BaseAnimationPlayerView.kt")
+        include("com/keke/giftplayer/animation/widget/QueuedAnimationPlayerView.kt")
     }
 }
 

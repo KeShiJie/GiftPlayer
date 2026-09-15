@@ -22,34 +22,34 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Created by keke on 2026/06/23.
- * Desc: Animation resource download and cache manager.
+ * Desc: 动画资源下载与缓存管理器。
  */
 object AnimationResourceManager {
 
-    /** Serializes task table and queue state changes. */
+    /** 串行保护任务表和队列状态的修改。 */
     private val lock = Any()
 
-    /** External callbacks are dispatched on the main thread so callers can update UI directly. */
+    /** 外部回调在主线程分发，调用方可直接更新 UI。 */
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val timeoutExecutor = ScheduledThreadPoolExecutor(1) { runnable ->
         Thread(runnable, "animation-download-timeout").apply { isDaemon = true }
     }.apply { removeOnCancelPolicy = true }
 
-    /** Current configuration. Hosts can tune cache size and concurrency policy. */
+    /** 当前配置，调用方可调整缓存容量和下载并发策略。 */
     @Volatile
     private var config = AnimationDownloadConfig()
 
     @Volatile
     private var appContext: Context? = null
 
-    /** Running tasks. A resourceKey can have only one real download task. */
+    /** 等待或下载中的任务；每个 resourceKey 只对应一个实际下载任务。 */
     private val runningTasks = ConcurrentHashMap<String, RunningDownload>()
 
-    /** Files currently playing or handed to the player; cache cleanup skips them. */
+    /** 正在播放或已交给播放器的文件，缓存清理时跳过。 */
     private val protectedFiles = ConcurrentHashMap<String, AtomicInteger>()
 
-    /** Initializes the download manager. Repeated calls update configuration and applicationContext. */
+    /** 初始化下载管理器；重复调用会更新配置和应用上下文。 */
     @JvmStatic
     fun init(context: Context, config: AnimationDownloadConfig = AnimationDownloadConfig()): Unit = synchronized(lock) {
         appContext = context.applicationContext
@@ -67,7 +67,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Preloads resources in batch and returns one task handle per caller. */
+    /** 批量预加载资源，为每次资源请求返回独立的任务句柄。 */
     @JvmStatic
     fun preload(
         context: Context,
@@ -76,7 +76,7 @@ object AnimationResourceManager {
         return preload(context, resources, NoopAnimationDownloadCallback)
     }
 
-    /** Preloads resources in batch and forwards each resource result to the caller. */
+    /** 批量预加载资源，并向调用方回调每个资源的处理结果。 */
     @JvmStatic
     fun preload(
         context: Context,
@@ -89,7 +89,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Downloads a resource. Valid cache entries and existing tasks are reused. */
+    /** 下载资源，复用有效缓存及已有下载任务。 */
     @JvmStatic
     fun download(
         context: Context,
@@ -145,21 +145,21 @@ object AnimationResourceManager {
         return ActiveAnimationDownloadTask(resourceKey, callbackKey)
     }
 
-    /** Returns a valid cached file. Invalid cache entries are removed. */
+    /** 返回有效缓存文件，并移除无效缓存。 */
     @JvmStatic
     fun getCachedFile(context: Context, resource: AnimationResource): File? {
         ensureInit(context)
         return getValidCachedFileIfNotDownloading(resource)
     }
 
-    /** Returns whether the resource has a valid cached file. */
+    /** 判断资源是否存在有效缓存文件。 */
     @JvmStatic
     fun isCached(context: Context, resource: AnimationResource): Boolean {
         ensureInit(context)
         return getValidCachedFileIfNotDownloading(resource) != null
     }
 
-    /** Marks a file as playing or about to play so cache cleanup skips it. */
+    /** 标记文件正在播放或即将播放，缓存清理时跳过。 */
     @JvmStatic
     fun protectFile(file: File) {
         protectedFiles.compute(file.absolutePath) { _, count ->
@@ -167,7 +167,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Removes file protection so later cache cleanup may delete it. */
+    /** 解除文件保护，允许后续缓存清理删除。 */
     @JvmStatic
     fun unprotectFile(file: File) {
         protectedFiles.compute(file.absolutePath) { _, count ->
@@ -176,7 +176,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Cleans expired files and trims oversized cache. */
+    /** 清理过期文件及超出容量上限的缓存。 */
     @JvmStatic
     fun clearExpired() {
         val dir = cacheDir()
@@ -193,7 +193,7 @@ object AnimationResourceManager {
         trimCacheSize()
     }
 
-    /** Clears all cache files that are neither protected nor downloading. */
+    /** 清理所有未受保护且不在下载中的缓存文件。 */
     @JvmStatic
     fun clearAll() {
         val dir = cacheDir()
@@ -205,7 +205,7 @@ object AnimationResourceManager {
             }
     }
 
-    /** Returns current animation cache size. */
+    /** 返回当前动画缓存大小，单位为字节。 */
     @JvmStatic
     fun getCacheSize(): Long {
         return cacheDir().listFiles()
@@ -214,7 +214,7 @@ object AnimationResourceManager {
             ?: 0L
     }
 
-    /** Creates the underlying FileDownloader task. */
+    /** 创建底层 FileDownloader 下载任务。 */
     private fun createDownloadTask(download: RunningDownload): BaseDownloadTask {
         AnimationLog.i("download start: ${download.targetFile.name}, priority=${download.priority}")
         return FileDownloader.getImpl()
@@ -262,7 +262,7 @@ object AnimationResourceManager {
             })
     }
 
-    /** Starts queued tasks by priority while respecting configured concurrency. */
+    /** 按照优先级启动等待任务，并遵守配置的并发上限。 */
     private fun scheduleDownloadsLocked() {
         val maxConcurrent = maxOf(1, config.maxConcurrentDownloads)
         while (runningTasks.values.count { it.state == DownloadState.Downloading } < maxConcurrent) {
@@ -295,7 +295,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Validates the downloaded file and broadcasts the result. */
+    /** 校验下载文件并分发处理结果。 */
     private fun handleDownloadCompleted(running: RunningDownload): Unit = synchronized(lock) {
         if (runningTasks[running.resourceKey] !== running) return@synchronized
         runningTasks.remove(running.resourceKey)
@@ -327,7 +327,7 @@ object AnimationResourceManager {
         scheduleDownloadsLocked()
     }
 
-    /** Broadcasts errors and cleans task state on failure, pause, or warning. */
+    /** 下载失败、暂停或收到警告时分发错误并清理任务状态。 */
     private fun handleDownloadError(
         running: RunningDownload,
         error: Throwable?,
@@ -339,7 +339,7 @@ object AnimationResourceManager {
         if (runningTasks[running.resourceKey] !== running) return@synchronized
         runningTasks.remove(running.resourceKey)
         cancelTimeoutLocked(running)
-        // Remove identity before pause: the downloader may synchronously deliver its paused callback.
+        // 暂停前先移除任务身份记录，下载器可能同步触发暂停回调。
         if (pauseUnderlying) pauseDownloadLocked(running)
         running.task = null
         if (removeCacheFile) running.targetFile.delete()
@@ -370,7 +370,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Returns a valid cached file and removes broken cache entries. */
+    /** 返回有效缓存文件，并移除损坏的缓存。 */
     private fun getValidCachedFile(resource: AnimationResource): File? {
         if (validateUrl(resource.url) != null) return null
         val resourceKey = buildResourceKey(resource)
@@ -390,7 +390,7 @@ object AnimationResourceManager {
         return null
     }
 
-    /** Returns valid cache while avoiding partial files currently being written. */
+    /** 返回有效缓存，避免读取正在写入的未完成文件。 */
     private fun getValidCachedFileIfNotDownloading(resource: AnimationResource): File? {
         if (validateUrl(resource.url) != null) return null
         val resourceKey = buildResourceKey(resource)
@@ -403,12 +403,12 @@ object AnimationResourceManager {
         }
     }
 
-    /** Validates whether a cached file can be played. */
+    /** 校验缓存文件是否满足播放所需的基本条件。 */
     private fun isValidCacheFile(file: File, resource: AnimationResource): Boolean {
         return isValidCacheFile(file, file, resource)
     }
 
-    /** Validates whether a cached file can be played; targetFile preserves the original temp file format. */
+    /** 校验文件是否满足播放所需的基本条件，通过 targetFile 确定临时文件对应的原始格式。 */
     private fun isValidCacheFile(file: File, targetFile: File, resource: AnimationResource): Boolean {
         if (!file.isFile || file.length() <= 0L) return false
         if (file.isGitLfsPointer()) return false
@@ -422,7 +422,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Validates whether the URL can be downloaded. */
+    /** 校验 URL 是否支持下载。 */
     private fun validateUrl(url: String): Throwable? {
         return when {
             url.isBlank() -> IllegalArgumentException("Animation url is blank.")
@@ -432,7 +432,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Builds a stable cache key for the resource. */
+    /** 为资源生成稳定的缓存 Key。 */
     private fun buildResourceKey(resource: AnimationResource): String {
         val id = resource.id?.takeIf { it.isNotBlank() }
         val version = resource.version?.takeIf { it.isNotBlank() }
@@ -443,7 +443,7 @@ object AnimationResourceManager {
         }.sanitizeFileName()
     }
 
-    /** Builds the cache file path from a resource key. */
+    /** 根据资源 Key 生成缓存文件路径。 */
     private fun buildCacheFile(resource: AnimationResource, resourceKey: String): File {
         val extension = resolveExtension(resource)
         val fileName = buildString {
@@ -456,37 +456,37 @@ object AnimationResourceManager {
         return File(cacheDir(), fileName)
     }
 
-    /** Builds the resumable download temp file; official cache stores only complete playable files. */
+    /** 生成断点续传临时文件路径，正式缓存仅保存完整且通过校验的文件。 */
     private fun buildDownloadFile(targetFile: File): File {
         return File(targetFile.parentFile, "${targetFile.name}$DOWNLOAD_FILE_SUFFIX")
     }
 
-    /** Builds the resumable download failure counter file. */
+    /** 生成断点续传失败次数记录文件的路径。 */
     private fun buildFailureFile(targetFile: File): File {
         return File(targetFile.parentFile, "${targetFile.name}$FAILURE_FILE_SUFFIX")
     }
 
-    /** Builds the temp file used internally by FileDownloader for partial content. */
+    /** 生成 FileDownloader 内部保存未完成内容的临时文件路径。 */
     private fun buildFileDownloaderTempFile(downloadFile: File): File {
         return File(FileDownloadUtils.getTempPath(downloadFile.absolutePath))
     }
 
-    /** Returns whether this is a completed download file not yet promoted to cache. */
+    /** 判断是否为尚未移入正式缓存的下载文件。 */
     private fun File.isDownloadFile(): Boolean {
         return name.endsWith(DOWNLOAD_FILE_SUFFIX)
     }
 
-    /** Returns whether this is a partial file being written by FileDownloader. */
+    /** 判断是否为 FileDownloader 使用的未完成临时文件。 */
     private fun File.isFileDownloaderTempFile(): Boolean {
         return name.endsWith("$DOWNLOAD_FILE_SUFFIX$FILE_DOWNLOADER_TEMP_SUFFIX")
     }
 
-    /** Returns whether this is a resumable download failure counter file. */
+    /** 判断是否为断点续传失败次数记录文件。 */
     private fun File.isFailureFile(): Boolean {
         return name.endsWith(FAILURE_FILE_SUFFIX)
     }
 
-    /** Prefers the URL extension; falls back to explicit format when the URL has no extension. */
+    /** 优先使用 URL 扩展名，无扩展名时使用显式指定的格式。 */
     private fun resolveExtension(resource: AnimationResource): String? {
         val urlExtension = resource.url.substringBefore('?')
             .substringBefore('#')
@@ -502,7 +502,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Trims cache size by deleting old files by last-used time. */
+    /** 按最近使用时间清理旧文件，使缓存容量满足上限。 */
     private fun trimCacheSize() {
         val dir = cacheDir()
         val files = dir.listFiles()
@@ -522,20 +522,20 @@ object AnimationResourceManager {
         }
     }
 
-    /** Ensures initialization. Uses default configuration when callers did not explicitly initialize. */
+    /** 确保管理器已初始化；调用方未显式初始化时使用默认配置。 */
     private fun ensureInit(context: Context) {
         if (appContext == null) {
             init(context, config)
         }
     }
 
-    /** Animation cache directory. */
+    /** 动画缓存目录。 */
     private fun cacheDir(): File {
         val context = appContext ?: error("AnimationResourceManager is not initialized.")
         return config.customCacheDir ?: File(context.cacheDir, config.cacheDirName)
     }
 
-    /** Returns whether a file is protected from cache cleanup. */
+    /** 判断文件是否受到缓存清理保护。 */
     private fun isProtected(file: File): Boolean {
         return protectedFiles.containsKey(file.absolutePath) ||
             runningTasks.values.any { running ->
@@ -546,12 +546,12 @@ object AnimationResourceManager {
             }
     }
 
-    /** A cache group cannot be cleaned when any file in the group is protected. */
+    /** 同一缓存组中任意文件受保护时，整个组都不能被清理。 */
     private fun isCacheGroupProtected(file: File): Boolean {
         return cacheGroupFiles(file).any { isProtected(it) }
     }
 
-    /** Deletes a resource cache group and its resumable download helper files. */
+    /** 删除资源缓存组及对应的断点续传辅助文件。 */
     private fun deleteCacheEntry(file: File): Boolean {
         var deleted = false
         cacheGroupFiles(file).forEach { groupFile ->
@@ -562,14 +562,14 @@ object AnimationResourceManager {
         return deleted
     }
 
-    /** Returns cache group size. Failure counter files are excluded from cache size. */
+    /** 返回缓存组大小，不包含失败次数记录文件。 */
     private fun cacheGroupSize(file: File): Long {
         return cacheGroupFiles(file)
             .filter { it.isFile && !it.isFailureFile() }
             .sumOf { it.length() }
     }
 
-    /** Returns official cache, download temp, partial, and failure counter files for the same resource. */
+    /** 返回同一资源的正式缓存、下载文件、未完成临时文件及失败次数记录文件。 */
     private fun cacheGroupFiles(file: File): List<File> {
         val targetFile = resolveCacheGroupTargetFile(file)
         val downloadFile = buildDownloadFile(targetFile)
@@ -581,7 +581,7 @@ object AnimationResourceManager {
         ).distinctBy { it.absolutePath }
     }
 
-    /** Resolves the official cache file path from any cache helper file. */
+    /** 根据任意缓存辅助文件推导正式缓存文件路径。 */
     private fun resolveCacheGroupTargetFile(file: File): File {
         val targetName = when {
             file.name.endsWith("$DOWNLOAD_FILE_SUFFIX$FILE_DOWNLOADER_TEMP_SUFFIX") ->
@@ -595,7 +595,7 @@ object AnimationResourceManager {
         return File(file.parentFile, targetName)
     }
 
-    /** Moves a completed download into official cache so the player only receives complete files. */
+    /** 将已完成下载移入正式缓存，确保播放器只接收完整文件。 */
     private fun moveDownloadFileToCache(downloadFile: File, targetFile: File): Boolean {
         if (!downloadFile.isFile) return false
         targetFile.parentFile?.mkdirs()
@@ -612,14 +612,14 @@ object AnimationResourceManager {
         }.getOrDefault(false)
     }
 
-    /** Deletes the download file, FileDownloader partial file, and failure counter. */
+    /** 删除下载文件、FileDownloader 未完成临时文件及失败次数记录。 */
     private fun deleteDownloadFiles(download: RunningDownload) {
         download.downloadFile.delete()
         buildFileDownloaderTempFile(download.downloadFile).delete()
         download.failureFile.delete()
     }
 
-    /** Clears partial files after too many resume failures for the same resource. */
+    /** 同一资源续传失败次数达到阈值后清理临时文件。 */
     private fun cleanupDownloadFilesIfNeeded(downloadFile: File, failureFile: File) {
         if (readFailureCount(failureFile) < maxResumableFailureCount()) return
         downloadFile.delete()
@@ -627,7 +627,7 @@ object AnimationResourceManager {
         failureFile.delete()
     }
 
-    /** Increments resumable download failure count. */
+    /** 递增断点续传失败次数。 */
     private fun increaseFailureCount(failureFile: File): Int {
         val count = readFailureCount(failureFile) + 1
         runCatching {
@@ -637,7 +637,7 @@ object AnimationResourceManager {
         return count
     }
 
-    /** Reads resumable download failure count. */
+    /** 读取断点续传失败次数。 */
     private fun readFailureCount(failureFile: File): Int {
         return runCatching {
             failureFile.takeIf { it.isFile }
@@ -648,12 +648,12 @@ object AnimationResourceManager {
         }.getOrDefault(0)
     }
 
-    /** Resume failure threshold, at least 1. */
+    /** 断点续传失败次数阈值，最小为 1。 */
     private fun maxResumableFailureCount(): Int {
         return maxOf(1, config.maxResumableFailureCount)
     }
 
-    /** Dispatches success callbacks on the main thread and runs cleanup after all callbacks finish. */
+    /** 在主线程分发成功回调，全部回调结束后执行清理。 */
     private fun notifySuccess(
         entries: List<DownloadCallbackEntry>,
         file: File,
@@ -678,7 +678,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Dispatches a success callback on the main thread. */
+    /** 在主线程分发成功回调。 */
     private fun notifySuccess(
         callback: AnimationDownloadCallback,
         resource: AnimationResource,
@@ -693,7 +693,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Dispatches an error callback on the main thread. */
+    /** 在主线程分发错误回调。 */
     private fun notifyError(
         callback: AnimationDownloadCallback,
         resource: AnimationResource,
@@ -708,7 +708,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Runs an external callback on the main thread. */
+    /** 在主线程执行外部回调。 */
     private fun runOnMain(action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             action()
@@ -717,7 +717,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Selects the higher priority. */
+    /** 选择较高的优先级。 */
     private fun maxPriority(
         current: AnimationDownloadPriority,
         incoming: AnimationDownloadPriority,
@@ -725,7 +725,7 @@ object AnimationResourceManager {
         return if (incoming.level > current.level) incoming else current
     }
 
-    /** Returns whether the file is a Git LFS pointer text file. */
+    /** 判断文件是否为 Git LFS 指针文本。 */
     private fun File.isGitLfsPointer(): Boolean {
         if (length() > GIT_LFS_POINTER_MAX_SIZE) return false
         return runCatching {
@@ -736,7 +736,7 @@ object AnimationResourceManager {
         }.getOrDefault(false)
     }
 
-    /** Returns whether the file header matches the given byte sequence. */
+    /** 判断文件头是否匹配指定字节序列。 */
     private fun File.hasHeader(header: ByteArray): Boolean {
         return runCatching {
             inputStream().use { input ->
@@ -746,7 +746,7 @@ object AnimationResourceManager {
         }.getOrDefault(false)
     }
 
-    /** Calculates file MD5. */
+    /** 计算文件的 MD5。 */
     private fun File.md5(): String {
         val digest = MessageDigest.getInstance("MD5")
         inputStream().use { input ->
@@ -760,30 +760,30 @@ object AnimationResourceManager {
         return digest.digest().joinToString(separator = "") { "%02x".format(it) }
     }
 
-    /** Calculates string MD5. */
+    /** 计算字符串的 MD5。 */
     private fun String.md5(): String {
         val digest = MessageDigest.getInstance("MD5").digest(toByteArray())
         return digest.joinToString(separator = "") { "%02x".format(it) }
     }
 
-    /** Sanitizes invalid filename characters. */
+    /** 替换文件名中的非法字符。 */
     private fun String.sanitizeFileName(): String {
         return replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "animation_${hashCode()}" }
     }
 
-    /** Real download task state. */
+    /** 实际下载任务状态。 */
     private enum class DownloadState {
         Queued,
         Downloading,
     }
 
-    /** Callback and original resource info for one caller. */
+    /** 单个调用方的回调及原始资源信息。 */
     private data class DownloadCallbackEntry(
         val resource: AnimationResource,
         val callback: AnimationDownloadCallback,
     )
 
-    /** Real download task that is waiting or downloading. */
+    /** 处于等待或下载状态的实际任务。 */
     private class RunningDownload(
         val resourceKey: String,
         val resource: AnimationResource,
@@ -799,19 +799,19 @@ object AnimationResourceManager {
         var state: DownloadState = DownloadState.Queued
     }
 
-    /** Empty task handle for completed operations. */
+    /** 已完成操作使用的空任务句柄。 */
     private object CompletedAnimationDownloadTask : AnimationDownloadTask {
         override fun cancel() = Unit
     }
 
-    /** Default preload callback that does not forward results. */
+    /** 默认预加载回调，不向外分发结果。 */
     private object NoopAnimationDownloadCallback : AnimationDownloadCallback {
         override fun onSuccess(resource: AnimationResource, file: File) = Unit
 
         override fun onError(resource: AnimationResource, error: Throwable?) = Unit
     }
 
-    /** Download task handle for the current caller. */
+    /** 当前调用方的下载任务句柄。 */
     private class ActiveAnimationDownloadTask(
         private val resourceKey: String,
         private val callbackKey: String,
@@ -832,7 +832,7 @@ object AnimationResourceManager {
         }
     }
 
-    /** Generates queue sequence. Older tasks run first when priority ties. */
+    /** 生成入队序号，同优先级时较早入队的任务先执行。 */
     private fun nextSequence(): Long = synchronized(lock) {
         taskSequence += 1
         taskSequence
