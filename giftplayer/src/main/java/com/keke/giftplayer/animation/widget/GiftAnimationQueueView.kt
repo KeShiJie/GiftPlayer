@@ -105,9 +105,10 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
                 now = SystemClock.elapsedRealtime(),
                 ttlMillis = config.messageTtlMillis,
             )
-            GiftPlayerLog.i(
-                "queue enqueue: queueId=${entry.sequence}, playbackPriority=$playbackPriority, " +
-                    requestLog(request),
+            GiftPlayerLog.info(
+                "Queue",
+                "Enqueued",
+                GiftPlayerLog.queueSummary(entry.sequence, playbackPriority, request),
             )
             notifyClient { onLoadStart(request) }
             if (!queue.isWaiting(entry) || disposed) return@runOnMain
@@ -128,6 +129,7 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
     fun clearQueue() {
         runOnMain {
             val removed = queue.clearWaiting()
+            GiftPlayerLog.info("Queue", "Waiting Entries Cleared", "Count=${removed.size}")
             removed.forEach { clean(it.value) }
             removed.forEach { entry -> notifyClient { onCancel(entry.value.original) } }
         }
@@ -152,6 +154,10 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 停止播放，可选清除队列。
+     * @param clear 是否清除礼物队列
+     */
     override fun stop(clear: Boolean) {
         runOnMain {
             if (disposed) return@runOnMain
@@ -190,6 +196,7 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         }
         val task = AnimationResourceManager.download(
             AnimationResource(
+                traceId = message.original.traceId,
                 url = source.url,
                 format = message.original.format,
                 downloadPriority = source.downloadPriority,
@@ -202,9 +209,15 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
                         message.download = null
                         protect(message, file)
                         message.playback = message.original.copy(source = AnimationSource.FilePath(file.absolutePath))
-                        GiftPlayerLog.i(
-                            "queue ready: queueId=${entry.sequence}, playbackPriority=${entry.playbackPriority}, " +
-                                "${requestLog(message.original)}, file=${file.name}",
+                        GiftPlayerLog.info(
+                            "Queue",
+                            "Resource Ready",
+                            GiftPlayerLog.queueSummary(
+                                queueId = entry.sequence,
+                                playbackPriority = entry.playbackPriority,
+                                request = message.original,
+                                file = file,
+                            ),
                         )
                         ready(entry)
                     }
@@ -229,6 +242,12 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         if (!queue.isWaiting(entry) || disposed || entry.value.prepared) return
         queue.remove(entry)
         clean(entry.value)
+        GiftPlayerLog.error(
+            "Queue",
+            "Resource Preparation Failed",
+            GiftPlayerLog.queueSummary(entry.sequence, entry.playbackPriority, entry.value.original),
+            error,
+        )
         notifyClient { onError(entry.value.original, AnimationError.DownloadFailed(error)) }
         scheduleAdvance()
     }
@@ -242,6 +261,11 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         val expired = queue.expired(SystemClock.elapsedRealtime()).filter(queue::remove)
         expired.forEach { clean(it.value) }
         expired.forEach { entry ->
+            GiftPlayerLog.warn(
+                "Queue",
+                "Waiting Timeout",
+                GiftPlayerLog.queueSummary(entry.sequence, entry.playbackPriority, entry.value.original),
+            )
             notifyClient { onError(entry.value.original, AnimationError.Cancelled("Queue message expired.")) }
         }
     }
@@ -260,10 +284,10 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         entry.value.expiry?.let(handler::removeCallbacks)
         entry.value.expiry = null
         try {
-            GiftPlayerLog.i(
-                "queue playback start -------------> queueId=${entry.sequence}, " +
-                    "playbackPriority=${entry.playbackPriority}, " +
-                    requestLog(entry.value.original),
+            GiftPlayerLog.info(
+                "Queue",
+                "Playback Started",
+                GiftPlayerLog.queueSummary(entry.sequence, entry.playbackPriority, entry.value.original),
             )
             super.play(entry.value.playback)
         } catch (error: Exception) {
@@ -292,24 +316,16 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         queue.remove(entry)
         clearPlaybackForNewRequest()
         clean(entry.value)
-        GiftPlayerLog.i(
-            "queue playback end: queueId=${entry.sequence}, playbackPriority=${entry.playbackPriority}, " +
-                requestLog(entry.value.original),
+        GiftPlayerLog.info(
+            "Queue",
+            "Playback Finished",
+            GiftPlayerLog.queueSummary(entry.sequence, entry.playbackPriority, entry.value.original),
         )
         try {
             notifyClient { event(entry.value.original) }
         } finally {
             scheduleAdvance()
         }
-    }
-
-    private fun requestLog(request: AnimationRequest): String {
-        val source = when (val source = request.source) {
-            is AnimationSource.Url -> "downloadPriority=${source.downloadPriority}，url=${source.url}"
-            is AnimationSource.Asset -> "asset=${source.name}"
-            is AnimationSource.FilePath -> "file=${source.path}"
-        }
-        return "$source, format=${request.format}, loop=${request.loopCount}"
     }
 
     private fun clean(message: Message) {
@@ -327,7 +343,7 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         try {
             callback?.event()
         } catch (error: Exception) {
-            GiftPlayerLog.e("queue callback failed: ${error.javaClass.simpleName}")
+            GiftPlayerLog.error("Queue", "Client Callback Failed", "Exception=${error.javaClass.simpleName}", error)
         }
     }
 }

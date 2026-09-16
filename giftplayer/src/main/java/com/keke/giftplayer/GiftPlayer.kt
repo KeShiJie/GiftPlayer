@@ -29,7 +29,7 @@ object GiftPlayer {
         plugins: List<AnimationPlayerPlugin> = emptyList(),
     ) {
         if (initialized) {
-            GiftPlayerLog.w("GiftPlayer is already initialized; the new configuration was ignored.")
+            GiftPlayerLog.warn("Initialization", "Duplicate Initialization", "New configuration was ignored")
             return
         }
         AnimationPlayerPluginRegistry.replaceExternalPlugins(plugins)

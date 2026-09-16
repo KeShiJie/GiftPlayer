@@ -26,7 +26,7 @@ class AnimationSourceResolver {
         callback: AnimationSourceResolveCallback,
     ): AnimationSourceResolveTask {
         if (source.name.isBlank()) {
-            GiftPlayerLog.e("resolve asset failed: blank name")
+            GiftPlayerLog.error("Source Resolver", "Asset Name Is Blank")
             callback.onError(AnimationError.InvalidSource("Asset name is blank."))
         } else {
             callback.onSuccess(ResolvedAnimationSource.Asset(source.name))
@@ -41,11 +41,11 @@ class AnimationSourceResolver {
         val path = source.path
         when {
             path.isBlank() -> {
-                GiftPlayerLog.e("resolve file failed: blank path")
+                GiftPlayerLog.error("Source Resolver", "File Path Is Blank")
                 callback.onError(AnimationError.InvalidSource("File path is blank."))
             }
             !File(path).isFile -> {
-                GiftPlayerLog.e("resolve file failed: file not found")
+                GiftPlayerLog.error("Source Resolver", "File Not Found", "File Path=[$path]")
                 callback.onError(AnimationError.FileNotFound(path))
             }
             else -> callback.onSuccess(ResolvedAnimationSource.FilePath(path))
@@ -57,7 +57,7 @@ class AnimationSourceResolver {
         source: AnimationSource.Url,
         callback: AnimationSourceResolveCallback,
     ): AnimationSourceResolveTask {
-        GiftPlayerLog.e("resolve url failed: use GiftAnimationPlayerView for URL sources")
+        GiftPlayerLog.error("Source Resolver", "URL Source Is Not Supported", "Use GiftAnimationPlayerView instead")
         callback.onError(AnimationError.InvalidSource("Use GiftAnimationPlayerView for URL sources."))
         return NoopAnimationSourceResolveTask
     }

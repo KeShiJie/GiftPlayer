@@ -1,6 +1,7 @@
 package com.keke.giftplayer.animation.download
 
 import com.keke.giftplayer.animation.core.AnimationFormat
+import java.util.UUID
 
 /**
  * Created by keke on 2026/06/23.
@@ -25,4 +26,7 @@ data class AnimationResource(
 
     /** 下载等待队列中的优先级数值；数值越大越先下载，由接入方定义。 */
     val downloadPriority: Int = 0,
+
+    /** 单次下载请求的链路标识；建议传入业务消息 ID，未传时自动生成。 */
+    val traceId: String = UUID.randomUUID().toString(),
 )

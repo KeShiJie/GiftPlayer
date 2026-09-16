@@ -458,6 +458,31 @@ GiftPlayer.initialize(
 
 SDK 会强引用日志接收器。请传入 Application 级对象，不要在闭包中捕获 Activity、Fragment 或 View。
 
+日志统一使用以下格式，便于按模块和字段检索：
+
+```text
+【Trace ID=[gift-message-id]】【Module】Event | Field=Value | Field=Value
+```
+
+例如：
+
+```text
+【Trace ID=[gift-message-123]】【Download】Download Started | URL=[https://example.com/gift.svga] | Download Priority=80 | Format=Auto | Cache File=[gift.svga]
+【Trace ID=[gift-message-123]】【Queue】Playback Started | Queue ID=2 | Playback Priority=50 | Source=URL | URL=[https://example.com/gift.mp4] | Download Priority=80 | Format=Auto
+【Trace ID=[gift-message-123]】【Playback】Playback Failed | Playback Generation=3 | Error Type=Render Failed | Format=VAP | Reason=...
+```
+
+为串联一次礼物从下载到播放结束的完整链路，请在创建请求时传入服务端消息 ID：
+
+```kotlin
+AnimationRequest(
+    traceId = giftMessageId,
+    source = AnimationSource.Url(animationUrl, downloadPriority = 80),
+)
+```
+
+未传入 `traceId` 时 SDK 自动生成 UUID。常用模块包括 `初始化`、`资源解析`、`下载`、`缓存`、`队列`、`播放`、`SVGA`。下载、缓存和队列相关日志会保留动画追踪 ID、原始 URL、优先级和缓存文件名。
+
 运行期间可以调整：
 
 ```kotlin

@@ -40,7 +40,6 @@ internal class SvgaAnimationPlayer(
         this.callback = callback
         released = false
         loaded = false
-        GiftPlayerLog.i("svga load start, source=${GiftPlayerLog.resolvedSourceType(source)}")
         svgaView.scaleType = request.scaleType.toImageScaleType()
         svgaView.loops = request.loopCount
         svgaView.fillMode = request.fillMode.toSvgaFillMode()
@@ -69,7 +68,6 @@ internal class SvgaAnimationPlayer(
                     videoItem.clear()
                     return
                 }
-                GiftPlayerLog.i("svga load success")
                 svgaView.setVideoItem(videoItem)
                 loaded = true
                 callback.onReady()
@@ -77,7 +75,6 @@ internal class SvgaAnimationPlayer(
 
             override fun onError() {
                 if (!released) {
-                    GiftPlayerLog.e("svga decode failed")
                     callback.onError(AnimationError.DecodeFailed(AnimationFormat.Svga, null))
                 }
             }
@@ -107,7 +104,7 @@ internal class SvgaAnimationPlayer(
 
     override fun play() {
         if (!released && loaded) {
-            GiftPlayerLog.i("svga play")
+            GiftPlayerLog.info("SVGA", "Start Playback")
             callback?.onStart()
             svgaView.startAnimation()
         }
@@ -125,14 +122,12 @@ internal class SvgaAnimationPlayer(
 
     override fun stop(clear: Boolean) {
         if (!released) {
-            GiftPlayerLog.i("svga stop clear=$clear")
             svgaView.stopAnimation(clear)
         }
     }
 
     override fun release() {
         if (released) return
-        GiftPlayerLog.i("svga release")
         released = true
         loaded = false
         svgaView.callback = null

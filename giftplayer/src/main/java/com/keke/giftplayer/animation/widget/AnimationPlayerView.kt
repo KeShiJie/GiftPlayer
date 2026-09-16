@@ -56,7 +56,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         released = false
         pausedForVisibility = false
         val currentId = nextRequestId()
-        GiftPlayerLog.i("play playbackGeneration=$currentId, ${GiftPlayerLog.requestSummary(request)}")
+        GiftPlayerLog.info("Playback", "Play Requested", "Playback Generation=$currentId | ${GiftPlayerLog.requestSummary(request)}")
         currentRequest = request
         currentResolveTask.cancel()
         currentPlayer?.release()
@@ -69,12 +69,18 @@ open class AnimationPlayerView @JvmOverloads constructor(
                     if (!isCurrent(currentId)) return@runOnMain
                     val format = AnimationFormatDetector.detect(request.format, source)
                     if (format == AnimationFormat.Auto) {
-                        GiftPlayerLog.e("detect format failed playbackGeneration=$currentId, source=${GiftPlayerLog.resolvedSourceType(source)}")
+                        GiftPlayerLog.error(
+                            "Playback",
+                            "Format Detection Failed",
+                            "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)} | ${GiftPlayerLog.resolvedSourceSummary(source)}",
+                        )
                         dispatchError(currentId, request, AnimationError.UnsupportedFormat(request.source))
                         return@runOnMain
                     }
-                    GiftPlayerLog.i(
-                        "source resolved playbackGeneration=$currentId, resolvedSource=${GiftPlayerLog.resolvedSourceType(source)}, format=$format"
+                    GiftPlayerLog.info(
+                        "Playback",
+                        "Source Resolved",
+                        "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)} | ${GiftPlayerLog.resolvedSourceSummary(source)} | Format=${GiftPlayerLog.formatName(format)}",
                     )
                     val plugin = AnimationPlayerPluginRegistry.find(format)
                     if (plugin == null) {
@@ -123,9 +129,10 @@ open class AnimationPlayerView @JvmOverloads constructor(
         val request = currentRequest
         val stoppedRequestId = playbackGeneration
         playbackGeneration += 1
-        GiftPlayerLog.i(
-            "stop playbackGeneration=$stoppedRequestId, nextGeneration=$playbackGeneration, " +
-                    "clear=$clear, hasRequest=${request != null}",
+        GiftPlayerLog.info(
+            "Playback",
+            "Stop Playback",
+            "Playback Generation=$stoppedRequestId | ${request?.let(GiftPlayerLog::traceSummary) ?: "Trace ID=None"} | Next Playback Generation=$playbackGeneration | Clear=$clear | Has Request=${request != null}",
         )
         currentResolveTask.cancel()
         currentPlayer?.stop(clear)
@@ -142,8 +149,10 @@ open class AnimationPlayerView @JvmOverloads constructor(
         released = true
         val releasedRequestId = playbackGeneration
         playbackGeneration += 1
-        GiftPlayerLog.i(
-            "release playbackGeneration=$releasedRequestId, nextGeneration=$playbackGeneration",
+        GiftPlayerLog.info(
+            "Playback",
+            "Release Player",
+            "Playback Generation=$releasedRequestId | ${currentRequest?.let(GiftPlayerLog::traceSummary) ?: "Trace ID=None"} | Next Playback Generation=$playbackGeneration",
         )
         currentResolveTask.cancel()
         currentResolveTask = NoopAnimationSourceResolveTask
@@ -201,6 +210,11 @@ open class AnimationPlayerView @JvmOverloads constructor(
             override fun onReady() {
                 runOnMain {
                     if (isCurrent(currentId)) {
+                        GiftPlayerLog.info(
+                            "Playback",
+                            "Load Completed",
+                            "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)}",
+                        )
                         if (request.autoPlay) {
                             currentPlayer?.play()
                         }
@@ -210,7 +224,10 @@ open class AnimationPlayerView @JvmOverloads constructor(
 
             override fun onStart() {
                 runOnMain {
-                    if (isCurrent(currentId)) animationCallback?.onStart(request)
+                    if (isCurrent(currentId)) {
+                        GiftPlayerLog.info("Playback", "Playback Started", "Playback Generation=$currentId | ${GiftPlayerLog.requestSummary(request)}")
+                        animationCallback?.onStart(request)
+                    }
                 }
             }
 
@@ -228,13 +245,27 @@ open class AnimationPlayerView @JvmOverloads constructor(
 
             override fun onComplete() {
                 runOnMain {
-                    if (isCurrent(currentId)) animationCallback?.onComplete(request)
+                    if (isCurrent(currentId)) {
+                        GiftPlayerLog.info(
+                            "Playback",
+                            "Playback Completed",
+                            "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)}",
+                        )
+                        animationCallback?.onComplete(request)
+                    }
                 }
             }
 
             override fun onCancel() {
                 runOnMain {
-                    if (isCurrent(currentId)) animationCallback?.onCancel(request)
+                    if (isCurrent(currentId)) {
+                        GiftPlayerLog.info(
+                            "Playback",
+                            "Playback Cancelled",
+                            "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)}",
+                        )
+                        animationCallback?.onCancel(request)
+                    }
                 }
             }
 
@@ -252,7 +283,11 @@ open class AnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrent(currentId)) return
-        GiftPlayerLog.e("play error playbackGeneration=$currentId, error=${GiftPlayerLog.errorSummary(error)}")
+        GiftPlayerLog.error(
+            "Playback",
+            "Playback Failed",
+            "Playback Generation=$currentId | ${GiftPlayerLog.traceSummary(request)} | ${GiftPlayerLog.errorSummary(error)}",
+        )
         currentPlayer?.release()
         currentPlayer = null
         removeAllViews()

@@ -1,10 +1,13 @@
 package com.keke.giftplayer.animation.core
 
+import java.util.UUID
+
 /**
  * Created by keke on 2026/4/16.
  * Desc: 动画播放请求。
  *
  * @property source 动画资源来源，支持远程 URL、本地文件和 assets。
+ * @property traceId 单次动画消息的链路标识。建议传入服务端礼物消息 ID；未传时自动生成。
  * @property format 动画格式，默认根据文件扩展名自动识别；无扩展名时建议显式指定。
  * @property loopCount 播放次数，默认播放 1 次。
  * @property autoPlay 是否在加载完成后自动播放，默认开启。
@@ -22,4 +25,5 @@ data class AnimationRequest(
     val fillMode: AnimationFillMode = AnimationFillMode.Forward,
     val enableAudio: Boolean = true,
     val pauseWhenInvisible: Boolean = false,
+    val traceId: String = UUID.randomUUID().toString(),
 )

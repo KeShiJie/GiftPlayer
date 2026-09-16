@@ -103,8 +103,15 @@ internal object AnimationResourceManager {
         synchronized(lock) {
             val current = runningTasks[resourceKey]
             if (current != null) {
+                val previousPriority = current.downloadPriority
                 current.downloadPriority = maxOf(current.downloadPriority, resource.downloadPriority)
                 current.callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
+                current.traceIds.add(resource.traceId)
+                GiftPlayerLog.info(
+                    "Download",
+                    "Merged Duplicate Resource Request",
+                    "${downloadSummary(current)} | Previous Download Priority=$previousPriority | Pending Callback Count=${current.callbacks.size}",
+                )
                 scheduleDownloadsLocked()
                 return ActiveAnimationDownloadTask(resourceKey, callbackKey)
             }
@@ -120,6 +127,11 @@ internal object AnimationResourceManager {
                 callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
             }
             runningTasks[resourceKey] = running
+            GiftPlayerLog.info(
+                "Download",
+                "Checking Cache",
+                downloadSummary(running),
+            )
             cacheExecutor.execute { inspectCacheAndQueue(running) }
         }
 
@@ -237,8 +249,10 @@ internal object AnimationResourceManager {
 
     /** 创建底层 FileDownloader 下载任务。 */
     private fun createDownloadTask(download: RunningDownload): BaseDownloadTask {
-        GiftPlayerLog.i(
-            "download start: ${download.targetFile.name}, downloadPriority=${download.downloadPriority}",
+        GiftPlayerLog.info(
+            "Download",
+            "Download Started",
+            downloadSummary(download),
         )
         return FileDownloader.getImpl()
             .create(download.resource.url)
@@ -297,7 +311,7 @@ internal object AnimationResourceManager {
     private fun inspectCacheAndQueue(running: RunningDownload) {
         if (!isCheckingCache(running)) return
         try {
-            val cachedFile = getValidCachedFile(running.resource)
+            val cachedFile = getValidCachedFile(running.resource, running.traceIds)
             if (cachedFile != null) {
                 cachedFile.setLastModified(System.currentTimeMillis())
                 val entries = synchronized(lock) {
@@ -315,6 +329,11 @@ internal object AnimationResourceManager {
             synchronized(lock) {
                 if (!isCheckingCacheLocked(running)) return
                 running.state = DownloadState.Queued
+                GiftPlayerLog.info(
+                    "Download",
+                    "Queued for Download",
+                    downloadSummary(running),
+                )
                 scheduleDownloadsLocked()
             }
         } catch (error: Exception) {
@@ -380,7 +399,11 @@ internal object AnimationResourceManager {
         if (isValidCacheFile(downloadFile, targetFile, running.resource) && moveDownloadFileToCache(downloadFile, targetFile)) {
             running.failureFile.delete()
             targetFile.setLastModified(System.currentTimeMillis())
-            GiftPlayerLog.i("download success: ${targetFile.name}, size=${targetFile.length()}")
+            GiftPlayerLog.info(
+                "Download",
+                "Download Completed",
+                "${downloadSummary(running)} | File Size=${targetFile.length()} bytes",
+            )
             protectFile(targetFile)
             notifySuccess(
                 entries = running.callbacks.values.toList(),
@@ -393,7 +416,12 @@ internal object AnimationResourceManager {
         } else {
             deleteDownloadFiles(running)
             val error = IllegalStateException("Downloaded animation file is invalid.")
-            GiftPlayerLog.e("download invalid: ${targetFile.name}")
+            GiftPlayerLog.error(
+                "Download",
+                "Downloaded File Validation Failed",
+                downloadSummary(running),
+                error,
+            )
             running.callbacks.values.forEach { entry ->
                 notifyError(entry.callback, entry.resource, error)
             }
@@ -421,10 +449,19 @@ internal object AnimationResourceManager {
             val failureCount = increaseFailureCount(running.failureFile)
             if (failureCount >= maxResumableFailureCount()) {
                 deleteDownloadFiles(running)
-                GiftPlayerLog.e("download resumable cache cleared: ${running.targetFile.name}, failures=$failureCount")
+                GiftPlayerLog.warn(
+                    "Download",
+                    "Resumable Download Files Cleared",
+                    "${downloadSummary(running)} | Consecutive Failure Count=$failureCount",
+                )
             }
         }
-        GiftPlayerLog.e("download failed: ${running.targetFile.name}, error=${error?.message.orEmpty()}", error)
+        GiftPlayerLog.error(
+            "Download",
+            "Download Failed",
+            "${downloadSummary(running)} | Reason=${error?.message.orEmpty()}",
+            error,
+        )
         running.callbacks.values.forEach { entry ->
             notifyError(entry.callback, entry.resource, error)
         }
@@ -440,17 +477,24 @@ internal object AnimationResourceManager {
 
     private fun pauseDownloadLocked(running: RunningDownload) {
         runCatching { running.task?.pause() }.onFailure {
-            GiftPlayerLog.e("download pause failed: ${it.javaClass.simpleName}", it)
+            GiftPlayerLog.error("Download", "Pause Download Failed", "Exception=${it.javaClass.simpleName}", it)
         }
     }
 
     /** 返回有效缓存文件，并移除损坏的缓存。 */
-    private fun getValidCachedFile(resource: AnimationResource): File? {
+    private fun getValidCachedFile(
+        resource: AnimationResource,
+        traceIds: Collection<String> = listOf(resource.traceId),
+    ): File? {
         if (validateUrl(resource.url) != null) return null
         val resourceKey = buildResourceKey(resource)
         val file = buildCacheFile(resource, resourceKey)
         if (isValidCacheFile(file, resource)) {
-            GiftPlayerLog.i("download cache hit: ${file.name}, size=${file.length()}")
+            GiftPlayerLog.info(
+                "Cache",
+                "Cache Hit",
+                "${GiftPlayerLog.downloadSummary(resource, file, traceIds = traceIds)} | File Size=${file.length()} bytes",
+            )
             return file
         }
         if (file.exists()) file.delete()
@@ -458,7 +502,11 @@ internal object AnimationResourceManager {
         if (isValidCacheFile(downloadFile, file, resource) && moveDownloadFileToCache(downloadFile, file)) {
             buildFailureFile(file).delete()
             file.setLastModified(System.currentTimeMillis())
-            GiftPlayerLog.i("download cache recovered: ${file.name}, size=${file.length()}")
+            GiftPlayerLog.info(
+                "Cache",
+                "Recovered Incomplete Download",
+                "${GiftPlayerLog.downloadSummary(resource, file, traceIds = traceIds)} | File Size=${file.length()} bytes",
+            )
             return file
         }
         return null
@@ -475,6 +523,15 @@ internal object AnimationResourceManager {
                 getValidCachedFile(resource)
             }
         }
+    }
+
+    private fun downloadSummary(running: RunningDownload): String {
+        return GiftPlayerLog.downloadSummary(
+            resource = running.resource,
+            file = running.targetFile,
+            downloadPriority = running.downloadPriority,
+            traceIds = running.traceIds,
+        )
     }
 
     /** 校验缓存文件是否满足播放所需的基本条件。 */
@@ -735,7 +792,7 @@ internal object AnimationResourceManager {
                     runCatching {
                         entry.callback.onProgress(entry.resource, downloadedBytes, totalBytes)
                     }.onFailure {
-                        GiftPlayerLog.e("download progress callback failed", it)
+                        GiftPlayerLog.error("Download", "Progress Callback Failed", "Exception=${it.javaClass.simpleName}", it)
                     }
                 }
             }
@@ -758,7 +815,7 @@ internal object AnimationResourceManager {
                     runCatching {
                         entry.callback.onSuccess(entry.resource, file)
                     }.onFailure {
-                        GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
+                        GiftPlayerLog.error("Download", "Success Callback Failed", "Exception=${it.javaClass.simpleName}")
                     }
                 } finally {
                     if (index == entries.lastIndex) afterAll()
@@ -777,7 +834,7 @@ internal object AnimationResourceManager {
             runCatching {
                 callback.onError(resource, error)
             }.onFailure {
-                GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
+                GiftPlayerLog.error("Download", "Failure Callback Failed", "Exception=${it.javaClass.simpleName}")
             }
         }
     }
@@ -794,14 +851,14 @@ internal object AnimationResourceManager {
     /** 执行缓存操作并记录异常，避免单个文件异常终止缓存串行线程。 */
     private fun <T> runCacheOperation(name: String, defaultValue: T, operation: () -> T): T {
         return runCatching(operation).getOrElse { error ->
-            GiftPlayerLog.e("$name failed: ${error.javaClass.simpleName}")
+            GiftPlayerLog.error("Cache", "$name Failed", "Exception=${error.javaClass.simpleName}", error)
             defaultValue
         }
     }
 
     private fun runCacheOperation(name: String, operation: () -> Unit) {
         runCatching(operation).onFailure { error ->
-            GiftPlayerLog.e("$name failed: ${error.javaClass.simpleName}")
+            GiftPlayerLog.error("Cache", "$name Failed", "Exception=${error.javaClass.simpleName}", error)
         }
     }
 
@@ -809,7 +866,7 @@ internal object AnimationResourceManager {
     private fun <T> notifyCacheCallback(callback: (T) -> Unit, value: T) {
         runOnMain {
             runCatching { callback(value) }.onFailure { error ->
-                GiftPlayerLog.e("cache callback failed: ${error.javaClass.simpleName}")
+                GiftPlayerLog.error("Cache", "Query Callback Failed", "Exception=${error.javaClass.simpleName}", error)
             }
         }
     }
@@ -817,7 +874,7 @@ internal object AnimationResourceManager {
     private fun notifyCacheCallback(callback: () -> Unit) {
         runOnMain {
             runCatching(callback).onFailure { error ->
-                GiftPlayerLog.e("cache callback failed: ${error.javaClass.simpleName}")
+                GiftPlayerLog.error("Cache", "Cleanup Callback Failed", "Exception=${error.javaClass.simpleName}", error)
             }
         }
     }
@@ -892,6 +949,7 @@ internal object AnimationResourceManager {
         var state: DownloadState = DownloadState.Queued,
     ) {
         val sequence = nextSequence()
+        val traceIds = ConcurrentHashMap.newKeySet<String>().apply { add(resource.traceId) }
         val callbacks = ConcurrentHashMap<String, DownloadCallbackEntry>()
         var task: BaseDownloadTask? = null
         var timeout: ScheduledFuture<*>? = null
@@ -923,7 +981,11 @@ internal object AnimationResourceManager {
                     cancelTimeoutLocked(running)
                     pauseDownloadLocked(running)
                     running.task = null
-                    GiftPlayerLog.i("download cancel requested: ${running.targetFile.name}")
+                    GiftPlayerLog.info(
+                        "Download",
+                        "Download Cancelled",
+                        downloadSummary(running),
+                    )
                     scheduleDownloadsLocked()
                 }
             }

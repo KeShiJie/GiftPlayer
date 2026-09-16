@@ -79,6 +79,11 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
         val currentId = nextDownloadRequestId()
         clearPlaybackForNewRequest()
         animationCallback?.onLoadStart(request)
+        GiftPlayerLog.info(
+            "Download",
+            "URL Playback Requested",
+            "Download Request Generation=$currentId | ${GiftPlayerLog.traceSummary(request)} | URL=[$url] | Download Priority=$downloadPriority | Format=${GiftPlayerLog.formatName(request.format)}",
+        )
         if (url.isBlank()) {
             dispatchDownloadError(currentId, request, AnimationError.InvalidSource("URL is blank."))
             return
@@ -89,6 +94,7 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
         }
 
         val resource = AnimationResource(
+            traceId = request.traceId,
             url = url,
             format = request.format,
             downloadPriority = downloadPriority,
@@ -100,6 +106,11 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
                     runOnMain {
                         if (!isCurrentDownload(currentId)) return@runOnMain
                         downloadTask = null
+                        GiftPlayerLog.info(
+                            "Download",
+                            "Resource Ready",
+                            "Download Request Generation=$currentId | Trace ID=[${resource.traceId}] | URL=[${resource.url}] | Cache File=[${file.name}]",
+                        )
                         playDownloadedFile(currentId, request, file)
                     }
                 }
@@ -133,7 +144,11 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrentDownload(currentId)) return
-        GiftPlayerLog.e("download error: ${error.javaClass.simpleName}")
+        GiftPlayerLog.error(
+            "Download",
+            "Playback Resource Download Failed",
+            "Download Request Generation=$currentId | ${GiftPlayerLog.traceSummary(request)} | ${GiftPlayerLog.errorSummary(error)}",
+        )
         animationCallback?.onError(request, error)
     }
 
@@ -141,7 +156,7 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
     private fun cancelDownload() {
         downloadRequestId += 1
         downloadTask?.let {
-            GiftPlayerLog.i("download cancel requested")
+            GiftPlayerLog.info("Download", "Download Wait Cancelled", "Download Request Generation=$downloadRequestId")
             it.cancel()
         }
         downloadTask = null
