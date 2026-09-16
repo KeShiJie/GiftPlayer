@@ -29,7 +29,7 @@
             android:textColor="@color/demo_text_secondary"
             android:textSize="14sp" />
 
-        <com.keke.giftplayer.animation.widget.QueuedAnimationPlayerView
+        <com.keke.giftplayer.animation.widget.GiftAnimationQueueView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="280dp"

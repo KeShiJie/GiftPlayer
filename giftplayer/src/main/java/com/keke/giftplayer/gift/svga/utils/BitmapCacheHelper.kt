@@ -3,7 +3,7 @@ package com.keke.giftplayer.gift.svga.utils
 import android.graphics.Bitmap
 import android.text.TextUtils
 import android.util.Log
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.gift.svga.bitmap.SVGABitmapByteArrayDecoder
 import com.keke.giftplayer.gift.svga.bitmap.SVGABitmapFileDecoder
 import java.security.MessageDigest
@@ -142,7 +142,7 @@ object BitmapCacheHelper {
             }
         }
         relatedList.remove(relatedKey)
-        AnimationLog.log(Log.INFO, "SVGA-clear", "release, remaining cache relations: " + relatedList.size)
+        GiftPlayerLog.log(Log.INFO, "SVGA-clear", "release, remaining cache relations: " + relatedList.size)
     }
 
     /**

@@ -7,7 +7,7 @@ import android.view.TextureView
 import com.keke.giftplayer.animation.core.AnimationError
 import com.keke.giftplayer.animation.core.AnimationFillMode
 import com.keke.giftplayer.animation.core.AnimationFormat
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 import org.libpag.PAGFile
@@ -92,7 +92,7 @@ internal class PagAnimationPlayer(
         stoppedByUser = false
         pendingPlay = false
         waitingForAttach = false
-        AnimationLog.i("pag load start, source=${AnimationLog.resolvedSourceType(resolvedSource)}")
+        GiftPlayerLog.i("pag load start, source=${GiftPlayerLog.resolvedSourceType(resolvedSource)}")
         pagView.setRepeatCount(request.loopCount)
         pagView.setScaleMode(request.scaleType.toPagScaleMode())
         pagView.addListener(listener)
@@ -104,7 +104,7 @@ internal class PagAnimationPlayer(
             is ResolvedAnimationSource.FilePath -> pagView.setPath(resolvedSource.path)
         }
         if (success) {
-            AnimationLog.i(
+            GiftPlayerLog.i(
                 "pag load success, duration=${pagView.duration()}, view=${pagView.width}x${pagView.height}, " +
                     "attached=${pagView.isAttachedToWindow}, surface=${pagView.isAvailable}"
             )
@@ -113,14 +113,14 @@ internal class PagAnimationPlayer(
             loaded = true
             callback.onReady()
         } else {
-            AnimationLog.e("pag decode failed")
+            GiftPlayerLog.e("pag decode failed")
             callback.onError(AnimationError.DecodeFailed(AnimationFormat.Pag, null))
         }
     }
 
     override fun play() {
         if (!released && loaded) {
-            AnimationLog.i(
+            GiftPlayerLog.i(
                 "pag play, view=${pagView.width}x${pagView.height}, attached=${pagView.isAttachedToWindow}, " +
                     "surface=${pagView.isAvailable}, duration=${pagView.duration()}"
             )
@@ -145,7 +145,7 @@ internal class PagAnimationPlayer(
 
     override fun stop(clear: Boolean) {
         if (!released) {
-            AnimationLog.i("pag stop clear=$clear")
+            GiftPlayerLog.i("pag stop clear=$clear")
             pendingPlay = false
             waitingForAttach = false
             stoppedByUser = true
@@ -159,7 +159,7 @@ internal class PagAnimationPlayer(
 
     override fun release() {
         if (released) return
-        AnimationLog.i("pag release")
+        GiftPlayerLog.i("pag release")
         released = true
         pendingPlay = false
         waitingForAttach = false

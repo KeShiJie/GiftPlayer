@@ -28,7 +28,7 @@
             android:textColor="@color/demo_text_secondary"
             android:textSize="14sp" />
 
-        <com.keke.giftplayer.animation.widget.BaseAnimationPlayerView
+        <com.keke.giftplayer.animation.widget.GiftAnimationPlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="280dp"

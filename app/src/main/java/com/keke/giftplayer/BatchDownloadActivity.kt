@@ -11,12 +11,10 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.keke.giftplayer.animation.AnimationInitializer
 import com.keke.giftplayer.animation.download.AnimationDownloadCallback
 import com.keke.giftplayer.animation.download.AnimationDownloadPriority
 import com.keke.giftplayer.animation.download.AnimationDownloadTask
 import com.keke.giftplayer.animation.download.AnimationResource
-import com.keke.giftplayer.animation.download.AnimationResourceManager
 import java.io.File
 
 /**
@@ -39,7 +37,6 @@ class BatchDownloadActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "批量下载示例"
-        AnimationInitializer.init(applicationContext, isLogEnabled = true)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padding = (16 * resources.displayMetrics.density).toInt()
@@ -105,14 +102,14 @@ class BatchDownloadActivity : AppCompatActivity() {
             rowsContainer.addView(label)
             rowsContainer.addView(progress)
             rowsContainer.addView(status)
-            rows[resource.url] = DownloadRow(progress, status, AnimationResourceManager.isCached(this, resource))
+            rows[resource.url] = DownloadRow(progress, status, GiftPlayer.isCached(resource))
         }
         startButton.isEnabled = false
         clearCacheButton.isEnabled = false
         urlsInput.isEnabled = false
         cancelButton.isEnabled = true
         updateSummary()
-        tasks = AnimationResourceManager.preload(this, resources, object : AnimationDownloadCallback {
+        tasks = GiftPlayer.preload(resources, object : AnimationDownloadCallback {
             override fun onProgress(resource: AnimationResource, downloadedBytes: Long, totalBytes: Long) {
                 if (generation != currentGeneration) return
                 val row = rows[resource.url] ?: return
@@ -188,8 +185,8 @@ class BatchDownloadActivity : AppCompatActivity() {
         summary.text = "正在清理缓存…"
         Thread({
             val result = runCatching {
-                AnimationResourceManager.clearAll()
-                AnimationResourceManager.getCacheSize()
+                GiftPlayer.clearCache()
+                GiftPlayer.getCacheSize()
             }
             runOnUiThread {
                 if (isDestroyed || isFinishing || generation != currentGeneration) return@runOnUiThread

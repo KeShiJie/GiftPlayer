@@ -4,7 +4,7 @@ import android.content.Context
 import android.view.View
 import com.keke.giftplayer.animation.core.AnimationError
 import com.keke.giftplayer.animation.core.AnimationFormat
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 import com.tencent.qgame.animplayer.AnimConfig
@@ -61,7 +61,7 @@ internal class VapAnimationPlayer(
         override fun onFailed(errorType: Int, errorMsg: String?) {
             if (!released) {
                 failed = true
-                AnimationLog.e("vap render failed: type=$errorType, error=${errorMsg.orEmpty()}")
+                GiftPlayerLog.e("vap render failed: type=$errorType, error=${errorMsg.orEmpty()}")
                 callback?.onError(
                     AnimationError.RenderFailed(
                         AnimationFormat.Vap,
@@ -84,7 +84,7 @@ internal class VapAnimationPlayer(
         stoppedByUser = false
         failed = false
         totalFrames = 0
-        AnimationLog.i("vap load start, source=${AnimationLog.resolvedSourceType(resolvedSource)}")
+        GiftPlayerLog.i("vap load start, source=${GiftPlayerLog.resolvedSourceType(resolvedSource)}")
         animView.setAnimListener(listener)
         animView.setLoop(request.loopCount)
         animView.setMute(!request.enableAudio)
@@ -95,7 +95,7 @@ internal class VapAnimationPlayer(
     override fun play() {
         val currentRequest = request ?: return
         if (released) return
-        AnimationLog.i("vap play")
+        GiftPlayerLog.i("vap play")
         stoppedByUser = false
         when (val source = resolvedSource) {
             is ResolvedAnimationSource.Asset -> {
@@ -105,7 +105,7 @@ internal class VapAnimationPlayer(
                 animView.startPlay(FileContainer(File(source.path)))
             }
             null -> {
-                AnimationLog.e("vap play failed: source is null")
+                GiftPlayerLog.e("vap play failed: source is null")
                 callback?.onError(AnimationError.InvalidSource("VAP source is not resolved."))
             }
         }
@@ -124,7 +124,7 @@ internal class VapAnimationPlayer(
 
     override fun stop(clear: Boolean) {
         if (!released) {
-            AnimationLog.i("vap stop clear=$clear")
+            GiftPlayerLog.i("vap stop clear=$clear")
             stoppedByUser = true
             animView.stopPlay()
         }
@@ -132,7 +132,7 @@ internal class VapAnimationPlayer(
 
     override fun release() {
         if (released) return
-        AnimationLog.i("vap release")
+        GiftPlayerLog.i("vap release")
         released = true
         stoppedByUser = true
         animView.setAnimListener(null)

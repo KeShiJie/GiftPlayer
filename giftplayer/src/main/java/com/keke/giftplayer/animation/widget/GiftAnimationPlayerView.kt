@@ -7,7 +7,7 @@ import com.keke.giftplayer.animation.download.AnimationDownloadTask
 import com.keke.giftplayer.animation.download.AnimationResource
 import com.keke.giftplayer.animation.download.AnimationResourceManager
 import com.keke.giftplayer.animation.core.AnimationError
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.core.AnimationSource
 import java.io.File
@@ -16,7 +16,7 @@ import java.io.File
  * Created by keke on 2026/06/18.
  * Desc: 支持 URL 下载的基础动画播放器。 适合普通播放场景
  */
-open class BaseAnimationPlayerView @JvmOverloads constructor(
+open class GiftAnimationPlayerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
@@ -94,7 +94,6 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
             priority = priority,
         )
         downloadTask = AnimationResourceManager.download(
-            context = context,
             resource = resource,
             callback = object : AnimationDownloadCallback {
                 override fun onSuccess(resource: AnimationResource, file: File) {
@@ -134,7 +133,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrentDownload(currentId)) return
-        AnimationLog.e("download error: ${error.javaClass.simpleName}")
+        GiftPlayerLog.e("download error: ${error.javaClass.simpleName}")
         animationCallback?.onError(request, error)
     }
 
@@ -142,7 +141,7 @@ open class BaseAnimationPlayerView @JvmOverloads constructor(
     private fun cancelDownload() {
         downloadRequestId += 1
         downloadTask?.let {
-            AnimationLog.i("download cancel requested")
+            GiftPlayerLog.i("download cancel requested")
             it.cancel()
         }
         downloadTask = null

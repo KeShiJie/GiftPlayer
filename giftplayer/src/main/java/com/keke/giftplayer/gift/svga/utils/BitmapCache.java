@@ -3,7 +3,7 @@ package com.keke.giftplayer.gift.svga.utils;
 import android.graphics.Bitmap;
 import android.util.Log;
 
-import com.keke.giftplayer.animation.core.AnimationLog;
+import com.keke.giftplayer.internal.GiftPlayerLog;
 
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -51,7 +51,7 @@ public class BitmapCache {
         references.remove(relatedKey);
         // Release bitmap resource when no references remain.
         if (references.isEmpty()) {
-            AnimationLog.log(Log.DEBUG, "SVGA-clear", "release svga bitmap");
+            GiftPlayerLog.log(Log.DEBUG, "SVGA-clear", "release svga bitmap");
             bitmap = null;
         }
     }

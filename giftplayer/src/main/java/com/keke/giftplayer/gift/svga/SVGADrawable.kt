@@ -6,7 +6,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.ImageView
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.gift.svga.drawer.SVGACanvasDrawer
 import com.keke.giftplayer.gift.svga.utils.BitmapCacheHelper
 
@@ -110,7 +110,7 @@ class SVGADrawable(val videoItem: SVGAVideoEntity, val dynamicItem: SVGADynamicE
      * Clears bitmap-backed frame objects.
      */
     fun clearFrameObjects(){
-        AnimationLog.log(Log.ERROR, "SVGA-clear", "SVGADrawable release")
+        GiftPlayerLog.log(Log.ERROR, "SVGA-clear", "SVGADrawable release")
         videoItem.clear()
     }
 

@@ -3,11 +3,4 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <application>
-        <service
-            android:name="androidx.work.multiprocess.RemoteWorkerService"
-            android:exported="false"
-            android:process=":work88" />
-    </application>
-
 </manifest>

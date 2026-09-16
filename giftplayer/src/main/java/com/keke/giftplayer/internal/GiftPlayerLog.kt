@@ -1,26 +1,31 @@
-package com.keke.giftplayer.animation.core
+package com.keke.giftplayer.internal
 
 import android.util.Log
+import com.keke.giftplayer.GiftPlayerLogLevel
+import com.keke.giftplayer.GiftPlayerLogger
+import com.keke.giftplayer.animation.core.AnimationError
+import com.keke.giftplayer.animation.core.AnimationRequest
+import com.keke.giftplayer.animation.core.AnimationSource
 import com.keke.giftplayer.gift.svga.utils.log.SVGALogger
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 
 /**
  * Created by keke on 2026/4/16.
  */
-object AnimationLog {
+internal object GiftPlayerLog {
     const val TAG = "AnimationPlayer"
     @Volatile
     private var logcatEnabled = false
 
     @Volatile
-    private var listener: AnimationLogListener? = null
+    private var logger: GiftPlayerLogger? = null
 
     private val dispatching = ThreadLocal<Boolean>()
 
     /** 设置全局日志监听器；传 null 移除。监听器异常不会中断播放或下载。 */
     @JvmStatic
-    fun setListener(value: AnimationLogListener?) {
-        listener = value
+    fun setLogger(value: GiftPlayerLogger?) {
+        logger = value
     }
 
     /** 控制 Logcat 输出，默认关闭，始终不影响监听器。 */
@@ -30,13 +35,7 @@ object AnimationLog {
         SVGALogger.setLogEnabled(value)
     }
 
-    /** 控制 Logcat 输出；初始化时使用 isLogEnabled 配置此值，不影响监听器。 */
-    @JvmStatic
-    fun setEnabled(value: Boolean) {
-        setLogcatEnabled(value)
-    }
-
-    internal fun hasListener(): Boolean = listener != null
+    fun hasLogger(): Boolean = logger != null
 
     fun i(message: String) {
         log(Log.INFO, TAG, message)
@@ -54,7 +53,7 @@ object AnimationLog {
         log(Log.ERROR, TAG, message, throwable)
     }
 
-    /** 统一转发日志ç */
+    /** 统一转发日志。 */
     @JvmStatic
     @JvmOverloads
     fun log(level: Int, tag: String, message: String, throwable: Throwable? = null) {
@@ -63,15 +62,25 @@ object AnimationLog {
             val text = if (throwable == null) message else "$message\n${Log.getStackTraceString(throwable)}"
             Log.println(level, tag, text)
         }
-        val currentListener = listener ?: return
+        val currentLogger = logger ?: return
         // 避免业务日志桥接回动画库时产生递归；线程之间互不影响。
         dispatching.set(true)
         try {
-            currentListener.onLog(level, tag, message, throwable)
+            currentLogger.log(level.toPublicLevel(), tag, message, throwable)
         } catch (_: Exception) {
             // 日志接收失败不影响动画流程，也不再次调用监听器报告错误。
         } finally {
             dispatching.remove()
+        }
+    }
+
+    private fun Int.toPublicLevel(): GiftPlayerLogLevel {
+        return when (this) {
+            Log.VERBOSE -> GiftPlayerLogLevel.Verbose
+            Log.DEBUG -> GiftPlayerLogLevel.Debug
+            Log.INFO -> GiftPlayerLogLevel.Info
+            Log.WARN -> GiftPlayerLogLevel.Warn
+            else -> GiftPlayerLogLevel.Error
         }
     }
 

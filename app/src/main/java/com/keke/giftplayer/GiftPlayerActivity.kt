@@ -16,17 +16,15 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.core.AnimationSource
-import com.keke.giftplayer.animation.download.AnimationDownloadConfig
 import com.keke.giftplayer.animation.download.AnimationDownloadPriority
-import com.keke.giftplayer.animation.AnimationInitializer
-import com.keke.giftplayer.animation.widget.BaseAnimationPlayerView
+import com.keke.giftplayer.animation.widget.GiftAnimationPlayerView
 
 /**
  * Created by keke on 2026/7/14.
  * Desc:
  */
 class GiftPlayerActivity : AppCompatActivity() {
-    private lateinit var playerView: BaseAnimationPlayerView
+    private lateinit var playerView: GiftAnimationPlayerView
     private lateinit var urlInput: EditText
     private lateinit var assetInput: EditText
     private lateinit var formatSpinner: Spinner
@@ -36,11 +34,6 @@ class GiftPlayerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_gift_player)
-        AnimationInitializer.init(
-            context = applicationContext,
-            downloadConfig = AnimationDownloadConfig(),
-            isLogEnabled = true,
-        )
         bindViews()
         bindPlayerCallback()
         bindActions()

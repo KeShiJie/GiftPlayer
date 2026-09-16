@@ -3,7 +3,8 @@ package com.keke.giftplayer.animation.download
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.GiftPlayerConfig
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.liulishuo.filedownloader.BaseDownloadTask
 import com.liulishuo.filedownloader.FileDownloadListener
 import com.liulishuo.filedownloader.FileDownloader
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * Created by keke on 2026/06/23.
  * Desc: 动画资源下载与缓存管理器。
  */
-object AnimationResourceManager {
+internal object AnimationResourceManager {
 
     /** 串行保护任务表和队列状态的修改。 */
     private val lock = Any()
@@ -37,7 +38,7 @@ object AnimationResourceManager {
 
     /** 当前配置，调用方可调整缓存容量和下载并发策略。 */
     @Volatile
-    private var config = AnimationDownloadConfig()
+    private var config = GiftPlayerConfig()
 
     @Volatile
     private var appContext: Context? = null
@@ -48,9 +49,8 @@ object AnimationResourceManager {
     /** 正在播放或已交给播放器的文件，缓存清理时跳过。 */
     private val protectedFiles = ConcurrentHashMap<String, AtomicInteger>()
 
-    /** 初始化下载管理器；重复调用会更新配置和应用上下文。 */
-    @JvmStatic
-    fun init(context: Context, config: AnimationDownloadConfig = AnimationDownloadConfig()): Unit = synchronized(lock) {
+    /** 由 GiftPlayer 统一初始化。 */
+    fun initialize(context: Context, config: GiftPlayerConfig): Unit = synchronized(lock) {
         appContext = context.applicationContext
         this.config = config
         cacheDir().mkdirs()
@@ -59,41 +59,33 @@ object AnimationResourceManager {
                 context, null, config.connectTimeoutMillis, config.readTimeoutMillis,
             )
         }
-        if (config.clearExpiredOnInit) {
+        if (config.clearExpiredOnInitialize) {
             clearExpired()
         }
     }
 
     /** 批量预加载资源，为每次资源请求返回独立的任务句柄。 */
-    @JvmStatic
     fun preload(
-        context: Context,
         resources: List<AnimationResource>,
     ): List<AnimationDownloadTask> {
-        return preload(context, resources, NoopAnimationDownloadCallback)
+        return preload(resources, NoopAnimationDownloadCallback)
     }
 
     /** 批量预加载资源，并向调用方回调每个资源的处理结果。 */
-    @JvmStatic
     fun preload(
-        context: Context,
         resources: List<AnimationResource>,
         callback: AnimationDownloadCallback,
     ): List<AnimationDownloadTask> {
-        ensureInit(context)
         return resources.map { resource ->
-            download(context, resource, callback)
+            download(resource, callback)
         }
     }
 
     /** 下载资源，复用有效缓存及已有下载任务。 */
-    @JvmStatic
     fun download(
-        context: Context,
         resource: AnimationResource,
         callback: AnimationDownloadCallback,
     ): AnimationDownloadTask {
-        ensureInit(context)
         val urlError = validateUrl(resource.url)
         if (urlError != null) {
             notifyError(callback, resource, urlError)
@@ -143,16 +135,12 @@ object AnimationResourceManager {
     }
 
     /** 返回有效缓存文件，并移除无效缓存。 */
-    @JvmStatic
-    fun getCachedFile(context: Context, resource: AnimationResource): File? {
-        ensureInit(context)
+    fun getCachedFile(resource: AnimationResource): File? {
         return getValidCachedFileIfNotDownloading(resource)
     }
 
     /** 判断资源是否存在有效缓存文件。 */
-    @JvmStatic
-    fun isCached(context: Context, resource: AnimationResource): Boolean {
-        ensureInit(context)
+    fun isCached(resource: AnimationResource): Boolean {
         return getValidCachedFileIfNotDownloading(resource) != null
     }
 
@@ -213,11 +201,11 @@ object AnimationResourceManager {
 
     /** 创建底层 FileDownloader 下载任务。 */
     private fun createDownloadTask(download: RunningDownload): BaseDownloadTask {
-        AnimationLog.i("download start: ${download.targetFile.name}, priority=${download.priority}")
+        GiftPlayerLog.i("download start: ${download.targetFile.name}, priority=${download.priority}")
         return FileDownloader.getImpl()
             .create(download.resource.url)
             .setPath(download.downloadFile.absolutePath)
-            .setForceReDownload(!config.enableResumeDownload)
+            .setForceReDownload(!config.resumeDownloadEnabled)
             .setListener(object : FileDownloadListener() {
                 override fun pending(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) = Unit
 
@@ -305,7 +293,7 @@ object AnimationResourceManager {
         if (isValidCacheFile(downloadFile, targetFile, running.resource) && moveDownloadFileToCache(downloadFile, targetFile)) {
             running.failureFile.delete()
             targetFile.setLastModified(System.currentTimeMillis())
-            AnimationLog.i("download success: ${targetFile.name}, size=${targetFile.length()}")
+            GiftPlayerLog.i("download success: ${targetFile.name}, size=${targetFile.length()}")
             protectFile(targetFile)
             notifySuccess(
                 entries = running.callbacks.values.toList(),
@@ -318,7 +306,7 @@ object AnimationResourceManager {
         } else {
             deleteDownloadFiles(running)
             val error = IllegalStateException("Downloaded animation file is invalid.")
-            AnimationLog.e("download invalid: ${targetFile.name}")
+            GiftPlayerLog.e("download invalid: ${targetFile.name}")
             running.callbacks.values.forEach { entry ->
                 notifyError(entry.callback, entry.resource, error)
             }
@@ -346,10 +334,10 @@ object AnimationResourceManager {
             val failureCount = increaseFailureCount(running.failureFile)
             if (failureCount >= maxResumableFailureCount()) {
                 deleteDownloadFiles(running)
-                AnimationLog.e("download resumable cache cleared: ${running.targetFile.name}, failures=$failureCount")
+                GiftPlayerLog.e("download resumable cache cleared: ${running.targetFile.name}, failures=$failureCount")
             }
         }
-        AnimationLog.e("download failed: ${running.targetFile.name}, error=${error?.message.orEmpty()}", error)
+        GiftPlayerLog.e("download failed: ${running.targetFile.name}, error=${error?.message.orEmpty()}", error)
         running.callbacks.values.forEach { entry ->
             notifyError(entry.callback, entry.resource, error)
         }
@@ -365,7 +353,7 @@ object AnimationResourceManager {
 
     private fun pauseDownloadLocked(running: RunningDownload) {
         runCatching { running.task?.pause() }.onFailure {
-            AnimationLog.e("download pause failed: ${it.javaClass.simpleName}", it)
+            GiftPlayerLog.e("download pause failed: ${it.javaClass.simpleName}", it)
         }
     }
 
@@ -375,7 +363,7 @@ object AnimationResourceManager {
         val resourceKey = buildResourceKey(resource)
         val file = buildCacheFile(resource, resourceKey)
         if (isValidCacheFile(file, resource)) {
-            AnimationLog.i("download cache hit: ${file.name}, size=${file.length()}")
+            GiftPlayerLog.i("download cache hit: ${file.name}, size=${file.length()}")
             return file
         }
         if (file.exists()) file.delete()
@@ -383,7 +371,7 @@ object AnimationResourceManager {
         if (isValidCacheFile(downloadFile, file, resource) && moveDownloadFileToCache(downloadFile, file)) {
             buildFailureFile(file).delete()
             file.setLastModified(System.currentTimeMillis())
-            AnimationLog.i("download cache recovered: ${file.name}, size=${file.length()}")
+            GiftPlayerLog.i("download cache recovered: ${file.name}, size=${file.length()}")
             return file
         }
         return null
@@ -518,13 +506,6 @@ object AnimationResourceManager {
             if (deleteCacheEntry(file)) {
                 totalSize -= size
             }
-        }
-    }
-
-    /** 确保管理器已初始化；调用方未显式初始化时使用默认配置。 */
-    private fun ensureInit(context: Context) {
-        if (appContext == null) {
-            init(context, config)
         }
     }
 
@@ -667,7 +648,7 @@ object AnimationResourceManager {
                     runCatching {
                         entry.callback.onProgress(entry.resource, downloadedBytes, totalBytes)
                     }.onFailure {
-                        AnimationLog.e("download progress callback failed", it)
+                        GiftPlayerLog.e("download progress callback failed", it)
                     }
                 }
             }
@@ -690,7 +671,7 @@ object AnimationResourceManager {
                     runCatching {
                         entry.callback.onSuccess(entry.resource, file)
                     }.onFailure {
-                        AnimationLog.e("download callback failed: ${it.javaClass.simpleName}")
+                        GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
                     }
                 } finally {
                     if (index == entries.lastIndex) afterAll()
@@ -709,7 +690,7 @@ object AnimationResourceManager {
             runCatching {
                 callback.onSuccess(resource, file)
             }.onFailure {
-                AnimationLog.e("download callback failed: ${it.javaClass.simpleName}")
+                GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
             }
         }
     }
@@ -724,7 +705,7 @@ object AnimationResourceManager {
             runCatching {
                 callback.onError(resource, error)
             }.onFailure {
-                AnimationLog.e("download callback failed: ${it.javaClass.simpleName}")
+                GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
             }
         }
     }
@@ -846,7 +827,7 @@ object AnimationResourceManager {
                     cancelTimeoutLocked(running)
                     pauseDownloadLocked(running)
                     running.task = null
-                    AnimationLog.i("download cancel requested: ${running.targetFile.name}")
+                    GiftPlayerLog.i("download cancel requested: ${running.targetFile.name}")
                     scheduleDownloadsLocked()
                 }
             }

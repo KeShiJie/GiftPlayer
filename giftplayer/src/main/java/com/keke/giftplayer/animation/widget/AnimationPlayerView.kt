@@ -9,7 +9,7 @@ import android.widget.FrameLayout
 import com.keke.giftplayer.animation.core.AnimationCallback
 import com.keke.giftplayer.animation.core.AnimationError
 import com.keke.giftplayer.animation.core.AnimationFormat
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.loader.AnimationFormatDetector
 import com.keke.giftplayer.animation.loader.AnimationSourceResolveCallback
@@ -55,7 +55,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         released = false
         pausedForVisibility = false
         val currentId = nextRequestId()
-        AnimationLog.i("play requestId=$currentId, ${AnimationLog.requestSummary(request)}")
+        GiftPlayerLog.i("play requestId=$currentId, ${GiftPlayerLog.requestSummary(request)}")
         currentRequest = request
         currentResolveTask.cancel()
         currentPlayer?.release()
@@ -68,12 +68,12 @@ open class AnimationPlayerView @JvmOverloads constructor(
                     if (!isCurrent(currentId)) return@runOnMain
                     val format = AnimationFormatDetector.detect(request.format, source)
                     if (format == AnimationFormat.Auto) {
-                        AnimationLog.e("detect format failed requestId=$currentId, source=${AnimationLog.resolvedSourceType(source)}")
+                        GiftPlayerLog.e("detect format failed requestId=$currentId, source=${GiftPlayerLog.resolvedSourceType(source)}")
                         dispatchError(currentId, request, AnimationError.UnsupportedFormat(request.source))
                         return@runOnMain
                     }
-                    AnimationLog.i(
-                        "source resolved requestId=$currentId, resolvedSource=${AnimationLog.resolvedSourceType(source)}, format=$format"
+                    GiftPlayerLog.i(
+                        "source resolved requestId=$currentId, resolvedSource=${GiftPlayerLog.resolvedSourceType(source)}, format=$format"
                     )
                     val player = createPlayer(format)
                     currentPlayer = player
@@ -116,7 +116,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         }
         val request = currentRequest
         requestId += 1
-        AnimationLog.i("stop requestId=$requestId, clear=$clear, hasRequest=${request != null}")
+        GiftPlayerLog.i("stop requestId=$requestId, clear=$clear, hasRequest=${request != null}")
         currentResolveTask.cancel()
         currentPlayer?.stop(clear)
         currentRequest = null
@@ -131,7 +131,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         if (released) return
         released = true
         requestId += 1
-        AnimationLog.i("release requestId=$requestId")
+        GiftPlayerLog.i("release requestId=$requestId")
         currentResolveTask.cancel()
         currentResolveTask = NoopAnimationSourceResolveTask
         currentPlayer?.release()
@@ -248,7 +248,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrent(currentId)) return
-        AnimationLog.e("play error requestId=$currentId, error=${AnimationLog.errorSummary(error)}")
+        GiftPlayerLog.e("play error requestId=$currentId, error=${GiftPlayerLog.errorSummary(error)}")
         currentPlayer?.release()
         currentPlayer = null
         removeAllViews()

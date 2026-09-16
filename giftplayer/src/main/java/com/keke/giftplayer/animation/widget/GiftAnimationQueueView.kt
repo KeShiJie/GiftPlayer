@@ -7,7 +7,7 @@ import android.os.SystemClock
 import android.util.AttributeSet
 import com.keke.giftplayer.animation.core.AnimationCallback
 import com.keke.giftplayer.animation.core.AnimationError
-import com.keke.giftplayer.animation.core.AnimationLog
+import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationQueueConfig
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.core.AnimationSource
@@ -23,7 +23,7 @@ import java.io.File
  * 就绪优先模式，适用场景：房间礼物
  * url1入列 正在下载，url2入列，如url2文件已有缓存或者比url1先下载成功，则先播放url2，待url1下载完成后播放url1。
  */
-open class QueuedAnimationPlayerView @JvmOverloads constructor(
+open class GiftAnimationQueueView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
@@ -95,7 +95,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
     fun enqueue(request: AnimationRequest) {
         runOnMain {
             if (disposed) return@runOnMain
-            AnimationLog.i("queue enqueue: ${requestLog(request)}")
+            GiftPlayerLog.i("queue enqueue: ${requestLog(request)}")
             val entry = queue.add(Message(request), SystemClock.elapsedRealtime(), config.messageTtlMillis)
             notifyClient { onLoadStart(request) }
             if (!queue.isWaiting(entry) || disposed) return@runOnMain
@@ -177,7 +177,6 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
             return
         }
         val task = AnimationResourceManager.download(
-            context,
             AnimationResource(url = source.url, format = message.original.format, priority = source.priority),
             object : AnimationDownloadCallback {
                 override fun onSuccess(resource: AnimationResource, file: File) {
@@ -187,7 +186,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
                         message.download = null
                         protect(message, file)
                         message.playback = message.original.copy(source = AnimationSource.FilePath(file.absolutePath))
-                        AnimationLog.i("queue ready: ${requestLog(message.original)}, file=${file.name}")
+                        GiftPlayerLog.i("queue ready: ${requestLog(message.original)}, file=${file.name}")
                         ready(entry)
                     }
                 }
@@ -242,8 +241,8 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
         entry.value.expiry?.let(handler::removeCallbacks)
         entry.value.expiry = null
         try {
-        AnimationLog.i("queue playback start: ${requestLog(entry.value.original)}")
-        super.play(entry.value.playback)
+            GiftPlayerLog.i("queue playback start: ${requestLog(entry.value.original)}")
+            super.play(entry.value.playback)
         } catch (error: Exception) {
             terminal(entry.value.playback) {
                 onError(it, AnimationError.DecodeFailed(it.format, error))
@@ -270,7 +269,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
         queue.remove(entry)
         clearPlaybackForNewRequest()
         clean(entry.value)
-        AnimationLog.i("queue playback end: ${requestLog(entry.value.original)}")
+        GiftPlayerLog.i("queue playback end: ${requestLog(entry.value.original)}")
         try {
             notifyClient { event(entry.value.original) }
         } finally {
@@ -302,7 +301,7 @@ open class QueuedAnimationPlayerView @JvmOverloads constructor(
         try {
             callback?.event()
         } catch (error: Exception) {
-            AnimationLog.e("queue callback failed: ${error.javaClass.simpleName}")
+            GiftPlayerLog.e("queue callback failed: ${error.javaClass.simpleName}")
         }
     }
 }
