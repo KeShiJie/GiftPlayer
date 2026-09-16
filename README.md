@@ -132,12 +132,12 @@ GiftPlayer.initialize(
 
 重复调用 `initialize()` 会被忽略。不要在每个 Activity 中重复初始化。
 
-初始化默认不扫描或清理动画缓存，避免阻塞应用启动。请在业务合适的工作线程主动清理：
+初始化默认不扫描或清理动画缓存，避免阻塞应用启动。需要主动清理时，使用异步 API：
 
 ```kotlin
-Thread({
-    GiftPlayer.clearExpiredCache()
-}, "giftplayer-cache-cleanup").start()
+GiftPlayer.clearExpiredCacheAsync {
+    // 清理完成，回调在主线程。
+}
 ```
 
 如确实需要在初始化阶段清理缓存，可显式设置 `clearExpiredOnInitialize = true`，但不建议在冷启动路径使用。
@@ -402,15 +402,28 @@ flowchart TD
 ## 缓存管理
 
 ```kotlin
-val cached = GiftPlayer.isCached(resource)
-val cachedFile = GiftPlayer.getCachedFile(resource)
-val cacheSizeBytes = GiftPlayer.getCacheSize()
+GiftPlayer.isCachedAsync(resource) { cached ->
+    // 回调在主线程。
+}
 
-GiftPlayer.clearExpiredCache()
-GiftPlayer.clearCache()
+GiftPlayer.getCachedFileAsync(resource) { cachedFile ->
+    // 没有有效缓存时，cachedFile 为 null。
+}
+
+GiftPlayer.getCacheSizeAsync { cacheSizeBytes ->
+    // 已获取缓存大小。
+}
+
+GiftPlayer.clearExpiredCacheAsync {
+    // 过期缓存清理完成。
+}
+
+GiftPlayer.clearCacheAsync {
+    // 未受保护缓存清理完成。
+}
 ```
 
-缓存查询和清理包含文件访问。数据量较大时应在工作线程调用，避免阻塞主线程。正在播放并受保护的文件不会被缓存清理误删。
+异步缓存 API 在内部 I/O 线程执行文件访问，回调固定在主线程。同步版本仍可用于工作线程，并标记为 `@WorkerThread`。正在播放并受保护的文件不会被缓存清理误删。
 
 ## 弱网配置
 

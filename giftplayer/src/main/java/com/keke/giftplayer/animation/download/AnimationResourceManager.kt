@@ -131,9 +131,29 @@ internal object AnimationResourceManager {
         return getValidCachedFileIfNotDownloading(resource)
     }
 
+    /** 在缓存 I/O 线程查询有效缓存文件，结果在主线程回调。 */
+    fun getCachedFileAsync(resource: AnimationResource, callback: (File?) -> Unit) {
+        cacheExecutor.execute {
+            val file = runCacheOperation("get cached file", null) {
+                getCachedFile(resource)
+            }
+            notifyCacheCallback(callback, file)
+        }
+    }
+
     /** 判断资源是否存在有效缓存文件。 */
     fun isCached(resource: AnimationResource): Boolean {
         return getValidCachedFileIfNotDownloading(resource) != null
+    }
+
+    /** 在缓存 I/O 线程判断资源是否存在有效缓存文件，结果在主线程回调。 */
+    fun isCachedAsync(resource: AnimationResource, callback: (Boolean) -> Unit) {
+        cacheExecutor.execute {
+            val cached = runCacheOperation("check cached file", false) {
+                isCached(resource)
+            }
+            notifyCacheCallback(callback, cached)
+        }
     }
 
     /** 标记文件正在播放或即将播放，缓存清理时跳过。 */
@@ -170,6 +190,14 @@ internal object AnimationResourceManager {
         trimCacheSize()
     }
 
+    /** 在缓存 I/O 线程清理过期缓存，完成后在主线程回调。 */
+    fun clearExpiredAsync(callback: () -> Unit) {
+        cacheExecutor.execute {
+            runCacheOperation("clear expired cache") { clearExpired() }
+            notifyCacheCallback(callback)
+        }
+    }
+
     /** 清理所有未受保护且不在下载中的缓存文件。 */
     @JvmStatic
     fun clearAll() {
@@ -182,6 +210,14 @@ internal object AnimationResourceManager {
             }
     }
 
+    /** 在缓存 I/O 线程清理缓存，完成后在主线程回调。 */
+    fun clearAllAsync(callback: () -> Unit) {
+        cacheExecutor.execute {
+            runCacheOperation("clear cache") { clearAll() }
+            notifyCacheCallback(callback)
+        }
+    }
+
     /** 返回当前动画缓存大小，单位为字节。 */
     @JvmStatic
     fun getCacheSize(): Long {
@@ -189,6 +225,14 @@ internal object AnimationResourceManager {
             ?.filter { it.isFile && !it.isFailureFile() }
             ?.sumOf { it.length() }
             ?: 0L
+    }
+
+    /** 在缓存 I/O 线程统计缓存大小，结果在主线程回调。 */
+    fun getCacheSizeAsync(callback: (Long) -> Unit) {
+        cacheExecutor.execute {
+            val cacheSize = runCacheOperation("get cache size", 0L) { getCacheSize() }
+            notifyCacheCallback(callback, cacheSize)
+        }
     }
 
     /** 创建底层 FileDownloader 下载任务。 */
@@ -744,6 +788,37 @@ internal object AnimationResourceManager {
             action()
         } else {
             mainHandler.post(action)
+        }
+    }
+
+    /** 执行缓存操作并记录异常，避免单个文件异常终止缓存串行线程。 */
+    private fun <T> runCacheOperation(name: String, defaultValue: T, operation: () -> T): T {
+        return runCatching(operation).getOrElse { error ->
+            GiftPlayerLog.e("$name failed: ${error.javaClass.simpleName}")
+            defaultValue
+        }
+    }
+
+    private fun runCacheOperation(name: String, operation: () -> Unit) {
+        runCatching(operation).onFailure { error ->
+            GiftPlayerLog.e("$name failed: ${error.javaClass.simpleName}")
+        }
+    }
+
+    /** 缓存 API 回调统一回主线程，并隔离调用方异常。 */
+    private fun <T> notifyCacheCallback(callback: (T) -> Unit, value: T) {
+        runOnMain {
+            runCatching { callback(value) }.onFailure { error ->
+                GiftPlayerLog.e("cache callback failed: ${error.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private fun notifyCacheCallback(callback: () -> Unit) {
+        runOnMain {
+            runCatching(callback).onFailure { error ->
+                GiftPlayerLog.e("cache callback failed: ${error.javaClass.simpleName}")
+            }
         }
     }
 

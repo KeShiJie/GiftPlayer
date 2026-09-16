@@ -1,6 +1,7 @@
 package com.keke.giftplayer
 
 import android.content.Context
+import androidx.annotation.WorkerThread
 import com.keke.giftplayer.animation.download.AnimationDownloadCallback
 import com.keke.giftplayer.animation.download.AnimationDownloadTask
 import com.keke.giftplayer.animation.download.AnimationResource
@@ -74,34 +75,44 @@ object GiftPlayer {
         return AnimationResourceManager.download(resource, callback)
     }
 
+
+    /** 异步查询有效缓存文件 */
     @JvmStatic
-    fun getCachedFile(resource: AnimationResource): File? {
+    fun getCachedFileAsync(resource: AnimationResource, callback: (File?) -> Unit) {
         ensureInitialized()
-        return AnimationResourceManager.getCachedFile(resource)
+        AnimationResourceManager.getCachedFileAsync(resource, callback)
     }
 
+
+    /** 异步判断资源是否存在有效缓存 */
     @JvmStatic
-    fun isCached(resource: AnimationResource): Boolean {
+    fun isCachedAsync(resource: AnimationResource, callback: (Boolean) -> Unit) {
         ensureInitialized()
-        return AnimationResourceManager.isCached(resource)
+        AnimationResourceManager.isCachedAsync(resource, callback)
     }
 
+
+
+    /** 异步统计缓存大小；统计在 I/O 线程执行，结果在主线程回调。 */
     @JvmStatic
-    fun getCacheSize(): Long {
+    fun getCacheSizeAsync(callback: (Long) -> Unit) {
         ensureInitialized()
-        return AnimationResourceManager.getCacheSize()
+        AnimationResourceManager.getCacheSizeAsync(callback)
     }
 
+
+    /** 异步清理过期缓存；清理在 I/O 线程执行，完成后在主线程回调。 */
     @JvmStatic
-    fun clearExpiredCache() {
+    fun clearExpiredCacheAsync(callback: () -> Unit) {
         ensureInitialized()
-        AnimationResourceManager.clearExpired()
+        AnimationResourceManager.clearExpiredAsync(callback)
     }
 
+    /** 异步清理缓存；清理在 I/O 线程执行，完成后在主线程回调。 */
     @JvmStatic
-    fun clearCache() {
+    fun clearCacheAsync(callback: () -> Unit) {
         ensureInitialized()
-        AnimationResourceManager.clearAll()
+        AnimationResourceManager.clearAllAsync(callback)
     }
 
     private fun ensureInitialized() {

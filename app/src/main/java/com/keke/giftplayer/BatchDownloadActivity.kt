@@ -106,7 +106,11 @@ class BatchDownloadActivity : AppCompatActivity() {
             rowsContainer.addView(label)
             rowsContainer.addView(progress)
             rowsContainer.addView(status)
-            rows[resource.url] = DownloadRow(progress, status, GiftPlayer.isCached(resource))
+            rows[resource.url] = DownloadRow(progress, status)
+            GiftPlayer.isCachedAsync(resource) { cached ->
+                if (generation != currentGeneration) return@isCachedAsync
+                rows[resource.url]?.cached = cached
+            }
         }
         startButton.isEnabled = false
         clearCacheButton.isEnabled = false
@@ -187,29 +191,21 @@ class BatchDownloadActivity : AppCompatActivity() {
         clearCacheButton.isEnabled = false
         urlsInput.isEnabled = false
         summary.text = "正在清理缓存…"
-        Thread({
-            val result = runCatching {
-                GiftPlayer.clearCache()
-                GiftPlayer.getCacheSize()
-            }
-            runOnUiThread {
-                if (isDestroyed || isFinishing || generation != currentGeneration) return@runOnUiThread
+        GiftPlayer.clearCacheAsync {
+            if (isDestroyed || isFinishing || generation != currentGeneration) return@clearCacheAsync
+            GiftPlayer.getCacheSizeAsync { remaining ->
+                if (isDestroyed || isFinishing || generation != currentGeneration) return@getCacheSizeAsync
                 rows.clear()
                 rowsContainer.removeAllViews()
                 tasks = emptyList()
                 batchProgress.progress = 0
-                summary.text = result.fold(
-                    onSuccess = { remaining ->
-                        if (remaining == 0L) "缓存已清空" else
-                            "清理完成，剩余 ${Formatter.formatShortFileSize(this, remaining)}（使用中的资源会保留）"
-                    },
-                    onFailure = { "缓存清理失败：${it.message ?: it.javaClass.simpleName}" },
-                )
+                summary.text = if (remaining == 0L) "缓存已清空" else
+                    "清理完成，剩余 ${Formatter.formatShortFileSize(this, remaining)}（使用中的资源会保留）"
                 startButton.isEnabled = true
                 clearCacheButton.isEnabled = true
                 urlsInput.isEnabled = true
             }
-        }, "demo-clear-cache").start()
+        }
     }
 
     override fun onDestroy() {
@@ -222,7 +218,7 @@ class BatchDownloadActivity : AppCompatActivity() {
     private data class DownloadRow(
         val progress: ProgressBar,
         val status: TextView,
-        val cached: Boolean,
+        var cached: Boolean = false,
         var finished: Boolean = false,
         var success: Boolean = false,
     )
