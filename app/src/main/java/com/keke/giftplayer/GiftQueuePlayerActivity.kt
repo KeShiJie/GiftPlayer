@@ -69,7 +69,11 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
 
     private fun bindActions() {
         findViewById<Button>(R.id.playButton).setOnClickListener {
-            enqueueFromRemoteUrl()
+            enqueueFromRemoteUrl(getUrl(), AnimationDownloadPriority.High)
+        }
+        findViewById<Button>(R.id.addTopButton).setOnClickListener {
+            //插入一条高优先级的，场景：直播间自己发送的礼物 优先级最高
+            enqueueFromRemoteUrl(getUrl(), AnimationDownloadPriority.Highest)
         }
         findViewById<Button>(R.id.playAssetButton).setOnClickListener {
             enqueueFromAssetFile()
@@ -119,28 +123,27 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
         })
     }
 
-    private fun enqueueFromRemoteUrl() {
-        val list = listOf(
+    private fun enqueueFromRemoteUrl(url: String,priority:AnimationDownloadPriority) {
+        enqueue(
+            AnimationRequest(
+                source = AnimationSource.Url(url, priority),
+                format = selectedFormat(),
+                loopCount = 1,
+                scaleType = AnimationScaleType.FitCenter,
+                fillMode = AnimationFillMode.Clear,
+                enableAudio = true,
+                pauseWhenInvisible = false,
+            )
+        )
+    }
+
+    private fun getUrl(): String {
+       return listOf(
             "https://res.joyachat.com/gift/prod/1784259395913-hpzdoneiths.mp4?md5=2d518b80932cf710b739d66f2e6993cf",
             "https://s1.videocc.net/default-img/donate-svga/diamond.svga",
             "https://res.joyachat.com/gift/prod/1784258494360-t2xmmswicy.mp4?md5=2e431b864cc0801afe519e84af1122b9",
             "https://res.joyachat.com/gift/prod/1784258494360-t2xmmswicy.mp4?md5=2e431b864cc0801afe519e84af1122b9",
-        )
-        list.forEach {
-            enqueue(
-                AnimationRequest(
-                    source = AnimationSource.Url(it, AnimationDownloadPriority.Highest),
-                    format = selectedFormat(),
-                    loopCount = 1,
-                    scaleType = AnimationScaleType.FitCenter,
-                    fillMode = AnimationFillMode.Clear,
-                    enableAudio = true,
-                    pauseWhenInvisible = false,
-                )
-            )
-        }
-
-
+        ).random()
     }
 
     private fun enqueueFromAssetFile() {
@@ -198,6 +201,7 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
         return when (this) {
             is AnimationError.InvalidSource -> reason
             is AnimationError.UnsupportedFormat -> "Unsupported format"
+            is AnimationError.PlayerPluginMissing -> "Player plugin missing: $format"
             is AnimationError.DownloadFailed -> {
                 val type = cause?.javaClass?.simpleName ?: "Unknown"
                 val message = cause?.message.orEmpty()

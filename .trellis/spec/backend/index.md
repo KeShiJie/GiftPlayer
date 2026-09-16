@@ -15,6 +15,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Animation Queue Contract](./animation-queue-contract.md) | Ready-first playback and weak-network timeout contracts | Defined |
+| [Player Plugin Contract](./player-plugin-contract.md) | Optional animation-engine module and publication contracts | Defined |
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
 | [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |

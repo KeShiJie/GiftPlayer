@@ -1,27 +1,29 @@
-package com.keke.giftplayer.animation.player
+package com.keke.giftplayer.pag
 
 import android.content.Context
 import android.graphics.SurfaceTexture
-import android.view.View
 import android.view.TextureView
+import android.view.View
 import com.keke.giftplayer.animation.core.AnimationError
-import com.keke.giftplayer.animation.core.AnimationFillMode
 import com.keke.giftplayer.animation.core.AnimationFormat
-import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
+import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapter
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapterCallback
 import org.libpag.PAGFile
+import org.libpag.PAGScaleMode
 import org.libpag.PAGView
 
 /**
- * Created by keke on 2026/4/16.
- * Desc:PAG动画播放器。
+ * Created by keke on 2026/09/16.
+ * Desc: libpag 播放器适配器。
  */
 internal class PagAnimationPlayer(
     context: Context,
-) : AnimationPlayer {
+) : AnimationPlayerAdapter {
     private val pagView = PAGView(context)
-    private var callback: AnimationPlayerCallback? = null
+    private var callback: AnimationPlayerAdapterCallback? = null
     private var loaded = false
     private var released = false
     private var stoppedByUser = false
@@ -70,9 +72,7 @@ internal class PagAnimationPlayer(
             startPlayWhenReady()
         }
 
-        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-            return false
-        }
+        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = false
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
     }
@@ -82,9 +82,9 @@ internal class PagAnimationPlayer(
     }
 
     override fun load(
-        resolvedSource: ResolvedAnimationSource,
+        source: ResolvedAnimationSource,
         request: AnimationRequest,
-        callback: AnimationPlayerCallback,
+        callback: AnimationPlayerAdapterCallback,
     ) {
         this.callback = callback
         released = false
@@ -92,38 +92,29 @@ internal class PagAnimationPlayer(
         stoppedByUser = false
         pendingPlay = false
         waitingForAttach = false
-        GiftPlayerLog.i("pag load start, source=${GiftPlayerLog.resolvedSourceType(resolvedSource)}")
         pagView.setRepeatCount(request.loopCount)
         pagView.setScaleMode(request.scaleType.toPagScaleMode())
         pagView.addListener(listener)
-        val success = when (resolvedSource) {
+        val success = when (source) {
             is ResolvedAnimationSource.Asset -> {
-                pagView.composition = PAGFile.Load(pagView.context.assets, resolvedSource.name)
+                pagView.composition = PAGFile.Load(pagView.context.assets, source.name)
                 pagView.composition != null
             }
-            is ResolvedAnimationSource.FilePath -> pagView.setPath(resolvedSource.path)
+
+            is ResolvedAnimationSource.FilePath -> pagView.setPath(source.path)
         }
         if (success) {
-            GiftPlayerLog.i(
-                "pag load success, duration=${pagView.duration()}, view=${pagView.width}x${pagView.height}, " +
-                    "attached=${pagView.isAttachedToWindow}, surface=${pagView.isAvailable}"
-            )
             pagView.progress = 0.0
             pagView.flush()
             loaded = true
             callback.onReady()
         } else {
-            GiftPlayerLog.e("pag decode failed")
             callback.onError(AnimationError.DecodeFailed(AnimationFormat.Pag, null))
         }
     }
 
     override fun play() {
         if (!released && loaded) {
-            GiftPlayerLog.i(
-                "pag play, view=${pagView.width}x${pagView.height}, attached=${pagView.isAttachedToWindow}, " +
-                    "surface=${pagView.isAvailable}, duration=${pagView.duration()}"
-            )
             stoppedByUser = false
             pendingPlay = true
             startPlayWhenReady()
@@ -139,13 +130,10 @@ internal class PagAnimationPlayer(
         }
     }
 
-    override fun resume() {
-        play()
-    }
+    override fun resume() = play()
 
     override fun stop(clear: Boolean) {
         if (!released) {
-            GiftPlayerLog.i("pag stop clear=$clear")
             pendingPlay = false
             waitingForAttach = false
             stoppedByUser = true
@@ -159,7 +147,6 @@ internal class PagAnimationPlayer(
 
     override fun release() {
         if (released) return
-        GiftPlayerLog.i("pag release")
         released = true
         pendingPlay = false
         waitingForAttach = false
@@ -174,9 +161,7 @@ internal class PagAnimationPlayer(
         loaded = false
     }
 
-    override fun isPlaying(): Boolean {
-        return pagView.isPlaying
-    }
+    override fun isPlaying(): Boolean = pagView.isPlaying
 
     private fun startPlayWhenReady() {
         if (released || !loaded || !pendingPlay) return
@@ -187,13 +172,9 @@ internal class PagAnimationPlayer(
             }
             return
         }
-        if (!pagView.isAvailable) {
-            return
-        }
+        if (!pagView.isAvailable) return
         if (pagView.width <= 0 || pagView.height <= 0) {
-            pagView.post {
-                startPlayWhenReady()
-            }
+            pagView.post(::startPlayWhenReady)
             return
         }
         waitingForAttach = false
@@ -202,5 +183,13 @@ internal class PagAnimationPlayer(
         pagView.progress = 0.0
         pagView.flush()
         pagView.play()
+    }
+
+    private fun AnimationScaleType.toPagScaleMode(): Int {
+        return when (this) {
+            AnimationScaleType.FitCenter -> PAGScaleMode.LetterBox
+            AnimationScaleType.CenterCrop -> PAGScaleMode.Zoom
+            AnimationScaleType.FitXY -> PAGScaleMode.Stretch
+        }
     }
 }

@@ -1,10 +1,10 @@
 # GiftPlayer
 
-GiftPlayer 是一个 Android 礼物动画与房间特效 SDK。它提供统一的 SVGA、PAG、VAP 播放接口，并内置 URL 下载、缓存、优先级调度、批量预加载和顺序播放能力。
+GiftPlayer 是一个 Android 礼物动画与房间特效 SDK。它提供统一的 SVGA、PAG、VAP 播放接口，并内置 URL 下载、缓存、优先级调度、批量预加载和顺序播放能力。核心包内置定制版 SVGA，PAG 和 VAP 通过可选插件接入，业务项目可以自行选择第三方播放引擎版本。
 
 ## 支持能力
 
-- 支持 SVGA、PAG、VAP 动画
+- 内置 SVGA，按需接入 PAG、VAP
 - 支持远程 URL、`assets` 和本地文件
 - 支持单动画播放和消息队列播放
 - 支持并发下载、四级优先级和批量预加载
@@ -41,7 +41,9 @@ dependencyResolutionManagement {
 
 `FAIL_ON_PROJECT_REPOS` 表示所有仓库都在 `settings.gradle.kts` 统一管理。如果工程已有其他仓库管理策略，只需确保 `https://jitpack.io` 可用。
 
-在 App 模块中添加依赖：
+### 只使用 SVGA
+
+核心包已经包含本项目维护的定制版 SVGA，不需要额外添加 SVGAPlayer：
 
 ```kotlin
 dependencies {
@@ -49,7 +51,41 @@ dependencies {
 }
 ```
 
-请将版本号替换为 GitHub Releases 中实际发布的 Tag。
+### 接入 PAG
+
+接入方显式选择 `libpag` 版本，并添加 GiftPlayer 的 PAG 适配插件：
+
+```kotlin
+dependencies {
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v2.0.0")
+    implementation("com.tencent.tav:libpag:4.5.75")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-pag:v2.0.0")
+}
+```
+
+### 接入 VAP
+
+接入方显式选择 VAP 版本，并添加 GiftPlayer 的 VAP 适配插件：
+
+```kotlin
+dependencies {
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v2.0.0")
+    implementation("io.github.tencent:vap:2.0.28")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-vap:v2.0.0")
+}
+```
+
+只添加实际使用的格式即可。PAG/VAP 插件不会传递第三方播放引擎，最终版本完全由接入工程控制。请将示例版本替换为 GitHub Releases 中实际发布的 Tag；同一次发布的三个 GiftPlayer 模块应使用相同版本。
+
+### 当前验证版本
+
+| GiftPlayer 模块 | 第三方引擎 | 当前编译验证版本 |
+| --- | --- | --- |
+| `giftplayer` | 内置定制版 SVGA | 随核心包发布 |
+| `giftplayer-pag` | `com.tencent.tav:libpag` | `4.5.75` |
+| `giftplayer-vap` | `io.github.tencent:vap` | `2.0.28` |
+
+接入其他引擎版本前，应确认其公开 API 与上表版本兼容，并在目标设备上完成播放测试。
 
 ## 初始化
 
@@ -63,6 +99,20 @@ class App : Application() {
     }
 }
 ```
+
+使用 PAG 或 VAP 时，需要在同一次初始化中注册对应插件：
+
+```kotlin
+GiftPlayer.initialize(
+    context = this,
+    plugins = listOf(
+        PagPlayerPlugin(),
+        VapPlayerPlugin(),
+    ),
+)
+```
+
+只注册已经添加依赖且实际需要的插件。例如项目只播放 PAG，则只添加 PAG 的两条依赖并注册 `PagPlayerPlugin()`。
 
 需要自定义下载、缓存或日志时：
 
@@ -81,6 +131,8 @@ GiftPlayer.initialize(
 ```
 
 重复调用 `initialize()` 会被忽略。不要在每个 Activity 中重复初始化。
+
+如果请求了 PAG 或 VAP 动画，但初始化时没有注册对应插件，播放回调会收到 `AnimationError.PlayerPluginMissing(format)`。这类错误表示适配插件未注册，不是文件下载或解码失败。
 
 ## 选择播放器
 
@@ -374,12 +426,14 @@ GiftPlayer.setLogger(null)
 
 ## 模块说明
 
-- `giftplayer`：对外发布的 SDK，接入方只需要依赖此模块
+- `giftplayer`：核心 SDK、下载缓存、播放队列、插件接口和内置 SVGA
+- `giftplayer-pag`：libpag 适配插件，不传递 libpag 依赖
+- `giftplayer-vap`：VAP 适配插件，不传递 VAP 依赖
 - `app`：单播放、队列播放、assets 和批量下载示例
 - `lib_download`：下载适配模块
 - `filedownloader`：中台定制下载实现
 
-下载实现保留为仓库内部模块，但通过 Maven 发布依赖关系传递给接入工程。业务项目不应该直接调用 `AnimationResourceManager` 或依赖下载实现模块，统一通过 `GiftPlayer` 使用下载和缓存能力。
+下载实现保留为仓库内部模块，但通过 Maven 发布依赖关系传递给接入工程。业务项目不应该直接调用 `AnimationResourceManager` 或依赖下载实现模块，统一通过 `GiftPlayer` 使用下载和缓存能力。PAG/VAP 引擎则采用相反策略：插件在编译时使用引擎，但不会把引擎传递给业务项目，以便业务项目自行控制版本。
 
 ## 源码查看
 

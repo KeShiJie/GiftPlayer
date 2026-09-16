@@ -17,11 +17,9 @@ import com.keke.giftplayer.animation.loader.AnimationSourceResolveTask
 import com.keke.giftplayer.animation.loader.AnimationSourceResolver
 import com.keke.giftplayer.animation.loader.NoopAnimationSourceResolveTask
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
-import com.keke.giftplayer.animation.player.AnimationPlayer
-import com.keke.giftplayer.animation.player.AnimationPlayerCallback
-import com.keke.giftplayer.animation.player.PagAnimationPlayer
-import com.keke.giftplayer.animation.player.SvgaAnimationPlayer
-import com.keke.giftplayer.animation.player.VapAnimationPlayer
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapter
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapterCallback
+import com.keke.giftplayer.internal.AnimationPlayerPluginRegistry
 
 /**
  * Created by keke on 2026/4/16.
@@ -36,11 +34,14 @@ open class AnimationPlayerView @JvmOverloads constructor(
     private val sourceResolver = AnimationSourceResolver()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var currentResolveTask: AnimationSourceResolveTask = NoopAnimationSourceResolveTask
-    private var currentPlayer: AnimationPlayer? = null
+    private var currentPlayer: AnimationPlayerAdapter? = null
     private var currentRequest: AnimationRequest? = null
     protected var animationCallback: AnimationCallback? = null
+    //当前播放代次
     private var requestId = 0L
+    //是否已释放
     private var released = false
+    //因不可见而暂停
     private var pausedForVisibility = false
 
     open fun setCallback(callback: AnimationCallback?) {
@@ -75,7 +76,12 @@ open class AnimationPlayerView @JvmOverloads constructor(
                     GiftPlayerLog.i(
                         "source resolved requestId=$currentId, resolvedSource=${GiftPlayerLog.resolvedSourceType(source)}, format=$format"
                     )
-                    val player = createPlayer(format)
+                    val plugin = AnimationPlayerPluginRegistry.find(format)
+                    if (plugin == null) {
+                        dispatchError(currentId, request, AnimationError.PlayerPluginMissing(format))
+                        return@runOnMain
+                    }
+                    val player = plugin.create(context)
                     currentPlayer = player
                     addView(
                         player.view,
@@ -115,8 +121,12 @@ open class AnimationPlayerView @JvmOverloads constructor(
             return
         }
         val request = currentRequest
+        val stoppedRequestId = requestId
         requestId += 1
-        GiftPlayerLog.i("stop requestId=$requestId, clear=$clear, hasRequest=${request != null}")
+        GiftPlayerLog.i(
+            "stop requestId=$stoppedRequestId, nextGeneration=$requestId, " +
+                    "clear=$clear, hasRequest=${request != null}",
+        )
         currentResolveTask.cancel()
         currentPlayer?.stop(clear)
         currentRequest = null
@@ -130,8 +140,11 @@ open class AnimationPlayerView @JvmOverloads constructor(
         }
         if (released) return
         released = true
+        val releasedRequestId = requestId
         requestId += 1
-        GiftPlayerLog.i("release requestId=$requestId")
+        GiftPlayerLog.i(
+            "release requestId=$releasedRequestId, nextGeneration=$requestId",
+        )
         currentResolveTask.cancel()
         currentResolveTask = NoopAnimationSourceResolveTask
         currentPlayer?.release()
@@ -180,20 +193,11 @@ open class AnimationPlayerView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun createPlayer(format: AnimationFormat): AnimationPlayer {
-        return when (format) {
-            AnimationFormat.Svga -> SvgaAnimationPlayer(context)
-            AnimationFormat.Vap -> VapAnimationPlayer(context)
-            AnimationFormat.Pag -> PagAnimationPlayer(context)
-            AnimationFormat.Auto -> error("Auto format must be detected before creating player.")
-        }
-    }
-
     private fun createPlayerCallback(
         currentId: Long,
         request: AnimationRequest,
-    ): AnimationPlayerCallback {
-        return object : AnimationPlayerCallback {
+    ): AnimationPlayerAdapterCallback {
+        return object : AnimationPlayerAdapterCallback {
             override fun onReady() {
                 runOnMain {
                     if (isCurrent(currentId)) {

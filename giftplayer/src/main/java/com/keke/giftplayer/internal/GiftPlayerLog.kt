@@ -109,6 +109,7 @@ internal object GiftPlayerLog {
         return when (error) {
             is AnimationError.InvalidSource -> "InvalidSource(${error.reason})"
             is AnimationError.UnsupportedFormat -> "UnsupportedFormat(source=${sourceType(error.source)})"
+            is AnimationError.PlayerPluginMissing -> "PlayerPluginMissing(format=${error.format})"
             is AnimationError.DownloadFailed -> "DownloadFailed(${error.cause?.message.orEmpty()})"
             is AnimationError.FileNotFound -> "FileNotFound"
             is AnimationError.DecodeFailed -> "DecodeFailed(format=${error.format}, cause=${error.cause?.message.orEmpty()})"

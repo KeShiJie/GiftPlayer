@@ -5,6 +5,7 @@
     <string name="demo_url_hint">https://your.cdn.com/gift.svga</string>
     <string name="demo_asset_hint">assets file name, for example demo.svga</string>
     <string name="demo_play">Queue</string>
+    <string name="demo_add_top">addTop</string>
     <string name="demo_play_asset">Queue Asset</string>
     <string name="demo_pause">Pause</string>
     <string name="demo_resume">Resume</string>

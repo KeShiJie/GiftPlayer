@@ -5,6 +5,8 @@ import com.keke.giftplayer.animation.download.AnimationDownloadCallback
 import com.keke.giftplayer.animation.download.AnimationDownloadTask
 import com.keke.giftplayer.animation.download.AnimationResource
 import com.keke.giftplayer.animation.download.AnimationResourceManager
+import com.keke.giftplayer.animation.plugin.AnimationPlayerPlugin
+import com.keke.giftplayer.internal.AnimationPlayerPluginRegistry
 import com.keke.giftplayer.internal.GiftPlayerLog
 import java.io.File
 
@@ -20,11 +22,16 @@ object GiftPlayer {
     @JvmStatic
     @JvmOverloads
     @Synchronized
-    fun initialize(context: Context, config: GiftPlayerConfig = GiftPlayerConfig()) {
+    fun initialize(
+        context: Context,
+        config: GiftPlayerConfig = GiftPlayerConfig(),
+        plugins: List<AnimationPlayerPlugin> = emptyList(),
+    ) {
         if (initialized) {
             GiftPlayerLog.w("GiftPlayer is already initialized; the new configuration was ignored.")
             return
         }
+        AnimationPlayerPluginRegistry.replaceExternalPlugins(plugins)
         AnimationResourceManager.initialize(context.applicationContext, config)
         GiftPlayerLog.setLogcatEnabled(config.logcatEnabled)
         GiftPlayerLog.setLogger(config.logger)

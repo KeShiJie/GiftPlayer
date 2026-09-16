@@ -182,6 +182,7 @@ class GiftPlayerActivity : AppCompatActivity() {
         return when (this) {
             is AnimationError.InvalidSource -> reason
             is AnimationError.UnsupportedFormat -> "Unsupported format"
+            is AnimationError.PlayerPluginMissing -> "Player plugin missing: $format"
             is AnimationError.DownloadFailed -> {
                 val type = cause?.javaClass?.simpleName ?: "Unknown"
                 val message = cause?.message.orEmpty()

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.keke.giftplayer.library"
+    namespace = "com.keke.giftplayer.pag"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -15,7 +15,6 @@ android {
 
     defaultConfig {
         minSdk = 24
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -31,23 +30,20 @@ android {
     }
 }
 
-// Use Maven's standard -sources.jar lookup to avoid JitPack source URL rewriting.
 tasks.withType<GenerateModuleMetadata>().configureEach {
     enabled = false
 }
 
 dependencies {
-    testImplementation(libs.junit)
-    api(libs.androidx.appcompat)
-    api(project(":lib_download"))
-    api(libs.wire.runtime)
+    api(project(":giftplayer"))
+    compileOnly(libs.libpag)
 }
 
 publishing {
     publications {
         register<MavenPublication>("release") {
             groupId = project.group.toString()
-            artifactId = "giftplayer"
+            artifactId = "giftplayer-pag"
             version = project.version.toString()
 
             afterEvaluate {

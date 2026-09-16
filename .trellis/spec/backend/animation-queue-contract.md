@@ -2,7 +2,7 @@
 
 ## Scope
 
-Applies to `animation/widget/QueuedAnimationPlayerView.kt`, the resource manager,
+Applies to `animation/widget/GiftAnimationQueueView.kt`, the resource manager,
 and `lib_download` initialization. Single-play views retain replacement semantics.
 
 ## Signatures

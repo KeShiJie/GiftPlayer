@@ -1,30 +1,33 @@
-package com.keke.giftplayer.animation.player
+package com.keke.giftplayer.vap
 
 import android.content.Context
 import android.view.View
 import com.keke.giftplayer.animation.core.AnimationError
 import com.keke.giftplayer.animation.core.AnimationFormat
-import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
+import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapter
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapterCallback
 import com.tencent.qgame.animplayer.AnimConfig
 import com.tencent.qgame.animplayer.AnimView
 import com.tencent.qgame.animplayer.file.AssetsFileContainer
 import com.tencent.qgame.animplayer.file.FileContainer
 import com.tencent.qgame.animplayer.inter.IAnimListener
+import com.tencent.qgame.animplayer.util.ScaleType
 import java.io.File
 
 /**
- * Created by keke on 2026/4/16.
- * Desc: VAP
+ * Created by keke on 2026/09/16.
+ * Desc: VAP 播放器适配器。
  */
 internal class VapAnimationPlayer(
     context: Context,
-) : AnimationPlayer {
+) : AnimationPlayerAdapter {
     private val animView = AnimView(context)
-    private var callback: AnimationPlayerCallback? = null
+    private var callback: AnimationPlayerAdapterCallback? = null
     private var request: AnimationRequest? = null
-    private var resolvedSource: ResolvedAnimationSource? = null
+    private var source: ResolvedAnimationSource? = null
     private var released = false
     private var stoppedByUser = false
     private var failed = false
@@ -46,7 +49,7 @@ internal class VapAnimationPlayer(
             if (released) return
             val total = config?.totalFrames?.takeIf { it > 0 } ?: totalFrames
             if (total > 0) {
-                callback?.onProgress(((frameIndex + 1).toFloat() / total.toFloat()).coerceIn(0f, 1f))
+                callback?.onProgress(((frameIndex + 1).toFloat() / total).coerceIn(0f, 1f))
             }
         }
 
@@ -61,30 +64,28 @@ internal class VapAnimationPlayer(
         override fun onFailed(errorType: Int, errorMsg: String?) {
             if (!released) {
                 failed = true
-                GiftPlayerLog.e("vap render failed: type=$errorType, error=${errorMsg.orEmpty()}")
                 callback?.onError(
                     AnimationError.RenderFailed(
                         AnimationFormat.Vap,
-                        IllegalStateException("VAP error $errorType: ${errorMsg.orEmpty()}")
-                    )
+                        IllegalStateException("VAP error $errorType: ${errorMsg.orEmpty()}"),
+                    ),
                 )
             }
         }
     }
 
     override fun load(
-        resolvedSource: ResolvedAnimationSource,
+        source: ResolvedAnimationSource,
         request: AnimationRequest,
-        callback: AnimationPlayerCallback,
+        callback: AnimationPlayerAdapterCallback,
     ) {
         this.callback = callback
         this.request = request
-        this.resolvedSource = resolvedSource
+        this.source = source
         released = false
         stoppedByUser = false
         failed = false
         totalFrames = 0
-        GiftPlayerLog.i("vap load start, source=${GiftPlayerLog.resolvedSourceType(resolvedSource)}")
         animView.setAnimListener(listener)
         animView.setLoop(request.loopCount)
         animView.setMute(!request.enableAudio)
@@ -93,21 +94,18 @@ internal class VapAnimationPlayer(
     }
 
     override fun play() {
-        val currentRequest = request ?: return
-        if (released) return
-        GiftPlayerLog.i("vap play")
+        if (released || request == null) return
         stoppedByUser = false
-        when (val source = resolvedSource) {
+        when (val resolvedSource = source) {
             is ResolvedAnimationSource.Asset -> {
-                animView.startPlay(AssetsFileContainer(animView.context.assets, source.name))
+                animView.startPlay(AssetsFileContainer(animView.context.assets, resolvedSource.name))
             }
+
             is ResolvedAnimationSource.FilePath -> {
-                animView.startPlay(FileContainer(File(source.path)))
+                animView.startPlay(FileContainer(File(resolvedSource.path)))
             }
-            null -> {
-                GiftPlayerLog.e("vap play failed: source is null")
-                callback?.onError(AnimationError.InvalidSource("VAP source is not resolved."))
-            }
+
+            null -> callback?.onError(AnimationError.InvalidSource("VAP source is not resolved."))
         }
     }
 
@@ -118,13 +116,10 @@ internal class VapAnimationPlayer(
         }
     }
 
-    override fun resume() {
-        play()
-    }
+    override fun resume() = play()
 
     override fun stop(clear: Boolean) {
         if (!released) {
-            GiftPlayerLog.i("vap stop clear=$clear")
             stoppedByUser = true
             animView.stopPlay()
         }
@@ -132,17 +127,22 @@ internal class VapAnimationPlayer(
 
     override fun release() {
         if (released) return
-        GiftPlayerLog.i("vap release")
         released = true
         stoppedByUser = true
         animView.setAnimListener(null)
         animView.stopPlay()
         callback = null
         request = null
-        resolvedSource = null
+        source = null
     }
 
-    override fun isPlaying(): Boolean {
-        return animView.isRunning()
+    override fun isPlaying(): Boolean = animView.isRunning()
+
+    private fun AnimationScaleType.toVapScaleType(): ScaleType {
+        return when (this) {
+            AnimationScaleType.FitCenter -> ScaleType.FIT_CENTER
+            AnimationScaleType.CenterCrop -> ScaleType.CENTER_CROP
+            AnimationScaleType.FitXY -> ScaleType.FIT_XY
+        }
     }
 }

@@ -9,6 +9,8 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 import com.keke.giftplayer.internal.GiftPlayerLog
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapter
+import com.keke.giftplayer.animation.plugin.AnimationPlayerAdapterCallback
 import com.keke.giftplayer.gift.svga.SVGACallbackAdapter
 import com.keke.giftplayer.gift.svga.SVGACache
 import com.keke.giftplayer.gift.svga.SVGAImageView
@@ -22,23 +24,23 @@ import java.io.File
  */
 internal class SvgaAnimationPlayer(
     context: Context,
-) : AnimationPlayer {
+) : AnimationPlayerAdapter {
     private val svgaView = SVGAImageView(context)
-    private var callback: AnimationPlayerCallback? = null
+    private var callback: AnimationPlayerAdapterCallback? = null
     private var loaded = false
     private var released = false
 
     override val view: View = svgaView
 
     override fun load(
-        resolvedSource: ResolvedAnimationSource,
+        source: ResolvedAnimationSource,
         request: AnimationRequest,
-        callback: AnimationPlayerCallback,
+        callback: AnimationPlayerAdapterCallback,
     ) {
         this.callback = callback
         released = false
         loaded = false
-        GiftPlayerLog.i("svga load start, source=${GiftPlayerLog.resolvedSourceType(resolvedSource)}")
+        GiftPlayerLog.i("svga load start, source=${GiftPlayerLog.resolvedSourceType(source)}")
         svgaView.scaleType = request.scaleType.toImageScaleType()
         svgaView.loops = request.loopCount
         svgaView.fillMode = request.fillMode.toSvgaFillMode()
@@ -85,17 +87,17 @@ internal class SvgaAnimationPlayer(
             }
         }
 
-        when (resolvedSource) {
-            is ResolvedAnimationSource.Asset -> parser.decodeFromAssets(resolvedSource.name, parseCompletion)
+        when (source) {
+            is ResolvedAnimationSource.Asset -> parser.decodeFromAssets(source.name, parseCompletion)
             is ResolvedAnimationSource.FilePath -> {
-                val file = File(resolvedSource.path)
+                val file = File(source.path)
                 if (!file.isFile) {
-                    callback.onError(AnimationError.FileNotFound(resolvedSource.path))
+                    callback.onError(AnimationError.FileNotFound(source.path))
                     return
                 }
                 parser.decodeFromInputStream(
                     file.inputStream(),
-                    SVGACache.buildCacheKey(resolvedSource.path),
+                    SVGACache.buildCacheKey(source.path),
                     parseCompletion,
                     closeInputStream = true,
                 )

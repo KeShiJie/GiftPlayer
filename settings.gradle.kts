@@ -25,5 +25,7 @@ dependencyResolutionManagement {
 rootProject.name = "GiftPlayer"
 include(":app")
 include(":giftplayer")
+include(":giftplayer-pag")
+include(":giftplayer-vap")
 include(":lib_download")
 include(":filedownloader")

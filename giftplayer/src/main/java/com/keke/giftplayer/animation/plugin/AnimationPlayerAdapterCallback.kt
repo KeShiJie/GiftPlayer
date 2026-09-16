@@ -1,12 +1,12 @@
-package com.keke.giftplayer.animation.player
+package com.keke.giftplayer.animation.plugin
 
 import com.keke.giftplayer.animation.core.AnimationError
 
 /**
- * Created by keke on 2026/4/16.
- * Desc: 内部动画播放器回调。
+ * Created by keke on 2026/09/16.
+ * Desc: 动画引擎适配器向 GiftPlayer 分发播放状态的回调。
  */
-internal interface AnimationPlayerCallback {
+interface AnimationPlayerAdapterCallback {
     fun onReady()
     fun onStart()
     fun onProgress(progress: Float)

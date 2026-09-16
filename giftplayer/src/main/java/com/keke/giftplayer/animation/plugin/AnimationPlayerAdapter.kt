@@ -1,20 +1,20 @@
-package com.keke.giftplayer.animation.player
+package com.keke.giftplayer.animation.plugin
 
 import android.view.View
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.loader.ResolvedAnimationSource
 
 /**
- * Created by keke on 2026/4/16.
- * Desc: 动画播放器适配器接
+ * Created by keke on 2026/09/16.
+ * Desc: 动画引擎接入 GiftPlayer 时需要实现的播放器适配接口。
  */
-internal interface AnimationPlayer {
+interface AnimationPlayerAdapter {
     val view: View
 
     fun load(
-        resolvedSource: ResolvedAnimationSource,
+        source: ResolvedAnimationSource,
         request: AnimationRequest,
-        callback: AnimationPlayerCallback,
+        callback: AnimationPlayerAdapterCallback,
     )
 
     fun play()

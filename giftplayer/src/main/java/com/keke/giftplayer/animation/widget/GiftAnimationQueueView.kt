@@ -241,7 +241,7 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         entry.value.expiry?.let(handler::removeCallbacks)
         entry.value.expiry = null
         try {
-            GiftPlayerLog.i("queue playback start: ${requestLog(entry.value.original)}")
+            GiftPlayerLog.i("queue playback start -------------> ${requestLog(entry.value.original)}")
             super.play(entry.value.playback)
         } catch (error: Exception) {
             terminal(entry.value.playback) {

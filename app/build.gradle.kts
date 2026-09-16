@@ -37,6 +37,10 @@ android {
 
 dependencies {
     implementation(project(":giftplayer"))
+    implementation(project(":giftplayer-pag"))
+    implementation(project(":giftplayer-vap"))
+    implementation(libs.libpag)
+    implementation(libs.vap)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

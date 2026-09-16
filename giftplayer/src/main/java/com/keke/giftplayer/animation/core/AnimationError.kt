@@ -7,6 +7,7 @@ package com.keke.giftplayer.animation.core
 sealed class AnimationError {
     data class InvalidSource(val reason: String) : AnimationError()
     data class UnsupportedFormat(val source: AnimationSource) : AnimationError()
+    data class PlayerPluginMissing(val format: AnimationFormat) : AnimationError()
     data class DownloadFailed(val cause: Throwable?) : AnimationError()
     data class FileNotFound(val path: String) : AnimationError()
     data class DecodeFailed(val format: AnimationFormat, val cause: Throwable?) : AnimationError()
