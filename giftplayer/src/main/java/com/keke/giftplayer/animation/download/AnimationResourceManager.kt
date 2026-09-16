@@ -14,6 +14,7 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,11 @@ internal object AnimationResourceManager {
     private val timeoutExecutor = ScheduledThreadPoolExecutor(1) { runnable ->
         Thread(runnable, "animation-download-timeout").apply { isDaemon = true }
     }.apply { removeOnCancelPolicy = true }
+
+    /** 串行执行缓存校验、文件移动和缓存裁剪，避免在主线程进行磁盘 I/O。 */
+    private val cacheExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "animation-cache-io").apply { isDaemon = true }
+    }
 
     /** 当前配置，调用方可调整缓存容量和下载并发策略。 */
     @Volatile
@@ -58,9 +64,6 @@ internal object AnimationResourceManager {
             FileDownloaderInitializer.init(
                 context, null, config.connectTimeoutMillis, config.readTimeoutMillis,
             )
-        }
-        if (config.clearExpiredOnInitialize) {
-            clearExpired()
         }
     }
 
@@ -96,7 +99,6 @@ internal object AnimationResourceManager {
         val downloadFile = buildDownloadFile(targetFile)
         val failureFile = buildFailureFile(targetFile)
         val callbackKey = UUID.randomUUID().toString()
-        var cachedFile: File? = null
 
         synchronized(lock) {
             val current = runningTasks[resourceKey]
@@ -106,29 +108,19 @@ internal object AnimationResourceManager {
                 scheduleDownloadsLocked()
                 return ActiveAnimationDownloadTask(resourceKey, callbackKey)
             }
-            cachedFile = getValidCachedFile(resource)
-            if (cachedFile == null) {
-                cleanupDownloadFilesIfNeeded(downloadFile, failureFile)
-                targetFile.delete()
-                targetFile.parentFile?.mkdirs()
-                runningTasks[resourceKey] = RunningDownload(
-                    resourceKey = resourceKey,
-                    resource = resource,
-                    targetFile = targetFile,
-                    downloadFile = downloadFile,
-                    failureFile = failureFile,
-                    downloadPriority = resource.downloadPriority,
-                ).apply {
-                    callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
-                }
-                scheduleDownloadsLocked()
+            val running = RunningDownload(
+                resourceKey = resourceKey,
+                resource = resource,
+                targetFile = targetFile,
+                downloadFile = downloadFile,
+                failureFile = failureFile,
+                downloadPriority = resource.downloadPriority,
+                state = DownloadState.CheckingCache,
+            ).apply {
+                callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
             }
-        }
-
-        cachedFile?.let { file ->
-            file.setLastModified(System.currentTimeMillis())
-            notifySuccess(callback, resource, file)
-            return CompletedAnimationDownloadTask
+            runningTasks[resourceKey] = running
+            cacheExecutor.execute { inspectCacheAndQueue(running) }
         }
 
         return ActiveAnimationDownloadTask(resourceKey, callbackKey)
@@ -216,39 +208,88 @@ internal object AnimationResourceManager {
                 }
 
                 override fun completed(task: BaseDownloadTask?) {
-                    handleDownloadCompleted(download)
+                    cacheExecutor.execute { handleDownloadCompleted(download) }
                 }
 
                 override fun paused(task: BaseDownloadTask?, soFarBytes: Int, totalBytes: Int) {
-                    handleDownloadError(
-                        running = download,
-                        error = null,
-                        removeCacheFile = false,
-                        countFailure = false,
-                        reschedule = true,
-                    )
+                    cacheExecutor.execute {
+                        handleDownloadError(
+                            running = download,
+                            error = null,
+                            removeCacheFile = false,
+                            countFailure = false,
+                            reschedule = true,
+                        )
+                    }
                 }
 
                 override fun error(task: BaseDownloadTask?, e: Throwable?) {
-                    handleDownloadError(
-                        running = download,
-                        error = e,
-                        removeCacheFile = false,
-                        countFailure = true,
-                        reschedule = true,
-                    )
+                    cacheExecutor.execute {
+                        handleDownloadError(
+                            running = download,
+                            error = e,
+                            removeCacheFile = false,
+                            countFailure = true,
+                            reschedule = true,
+                        )
+                    }
                 }
 
                 override fun warn(task: BaseDownloadTask?) {
-                    handleDownloadError(
-                        running = download,
-                        error = null,
-                        removeCacheFile = false,
-                        countFailure = true,
-                        reschedule = true,
-                    )
+                    cacheExecutor.execute {
+                        handleDownloadError(
+                            running = download,
+                            error = null,
+                            removeCacheFile = false,
+                            countFailure = true,
+                            reschedule = true,
+                        )
+                    }
                 }
             })
+    }
+
+    /** 在 I/O 线程检查缓存，未命中后才进入实际下载队列。 */
+    private fun inspectCacheAndQueue(running: RunningDownload) {
+        if (!isCheckingCache(running)) return
+        try {
+            val cachedFile = getValidCachedFile(running.resource)
+            if (cachedFile != null) {
+                cachedFile.setLastModified(System.currentTimeMillis())
+                val entries = synchronized(lock) {
+                    if (!isCheckingCacheLocked(running)) return
+                    runningTasks.remove(running.resourceKey)
+                    running.callbacks.values.toList()
+                }
+                notifySuccess(entries, cachedFile, afterAll = {})
+                return
+            }
+
+            cleanupDownloadFilesIfNeeded(running.downloadFile, running.failureFile)
+            running.targetFile.delete()
+            running.targetFile.parentFile?.mkdirs()
+            synchronized(lock) {
+                if (!isCheckingCacheLocked(running)) return
+                running.state = DownloadState.Queued
+                scheduleDownloadsLocked()
+            }
+        } catch (error: Exception) {
+            handleDownloadError(
+                running = running,
+                error = error,
+                removeCacheFile = false,
+                countFailure = false,
+                reschedule = true,
+            )
+        }
+    }
+
+    private fun isCheckingCache(running: RunningDownload): Boolean = synchronized(lock) {
+        isCheckingCacheLocked(running)
+    }
+
+    private fun isCheckingCacheLocked(running: RunningDownload): Boolean {
+        return runningTasks[running.resourceKey] === running && running.state == DownloadState.CheckingCache
     }
 
     /** 按照优先级启动等待任务，并遵守配置的并发上限。 */
@@ -302,7 +343,7 @@ internal object AnimationResourceManager {
                 file = targetFile,
                 afterAll = {
                     unprotectFile(targetFile)
-                    trimCacheSize()
+                    cacheExecutor.execute(::trimCacheSize)
                 },
             )
         } else {
@@ -682,21 +723,6 @@ internal object AnimationResourceManager {
         }
     }
 
-    /** 在主线程分发成功回调。 */
-    private fun notifySuccess(
-        callback: AnimationDownloadCallback,
-        resource: AnimationResource,
-        file: File,
-    ) {
-        runOnMain {
-            runCatching {
-                callback.onSuccess(resource, file)
-            }.onFailure {
-                GiftPlayerLog.e("download callback failed: ${it.javaClass.simpleName}")
-            }
-        }
-    }
-
     /** 在主线程分发错误回调。 */
     private fun notifyError(
         callback: AnimationDownloadCallback,
@@ -769,6 +795,7 @@ internal object AnimationResourceManager {
 
     /** 实际下载任务状态。 */
     private enum class DownloadState {
+        CheckingCache,
         Queued,
         Downloading,
     }
@@ -787,12 +814,12 @@ internal object AnimationResourceManager {
         val downloadFile: File,
         val failureFile: File,
         var downloadPriority: Int,
+        var state: DownloadState = DownloadState.Queued,
     ) {
         val sequence = nextSequence()
         val callbacks = ConcurrentHashMap<String, DownloadCallbackEntry>()
         var task: BaseDownloadTask? = null
         var timeout: ScheduledFuture<*>? = null
-        var state: DownloadState = DownloadState.Queued
     }
 
     /** 已完成操作使用的空任务句柄。 */

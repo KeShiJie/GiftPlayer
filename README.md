@@ -132,6 +132,16 @@ GiftPlayer.initialize(
 
 重复调用 `initialize()` 会被忽略。不要在每个 Activity 中重复初始化。
 
+初始化默认不扫描或清理动画缓存，避免阻塞应用启动。请在业务合适的工作线程主动清理：
+
+```kotlin
+Thread({
+    GiftPlayer.clearExpiredCache()
+}, "giftplayer-cache-cleanup").start()
+```
+
+如确实需要在初始化阶段清理缓存，可显式设置 `clearExpiredOnInitialize = true`，但不建议在冷启动路径使用。
+
 如果请求了 PAG 或 VAP 动画，但初始化时没有注册对应插件，播放回调会收到 `AnimationError.PlayerPluginMissing(format)`。这类错误表示适配插件未注册，不是文件下载或解码失败。
 
 ## 选择播放器

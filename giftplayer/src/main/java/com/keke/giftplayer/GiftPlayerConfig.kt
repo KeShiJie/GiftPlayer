@@ -22,9 +22,6 @@ data class GiftPlayerConfig(
     /** 最大并发下载数，其余任务按照优先级和入队顺序等待。 */
     val maxConcurrentDownloads: Int = DEFAULT_MAX_CONCURRENT_DOWNLOADS,
 
-    /** 是否在 SDK 初始化时执行过期和容量清理。 */
-    val clearExpiredOnInitialize: Boolean = true,
-
     /** 是否允许底层下载器复用临时文件继续下载。 */
     val resumeDownloadEnabled: Boolean = true,
 
