@@ -45,7 +45,7 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
         // URL 资源需要先经过下载流程。
         val source = request.source
         if (source is AnimationSource.Url) {
-            playUrl(request, source.url, source.priority)
+            playUrl(request, source.url, source.downloadPriority)
         } else {
             super.play(request)
         }
@@ -74,7 +74,7 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
     }
 
     /** 通过下载管理器获取 URL 资源，再以本地文件形式播放。 */
-    private fun playUrl(request: AnimationRequest, url: String, priority: com.keke.giftplayer.animation.download.AnimationDownloadPriority) {
+    private fun playUrl(request: AnimationRequest, url: String, downloadPriority: Int) {
         // 回调必须匹配当前请求序号才继续处理。
         val currentId = nextDownloadRequestId()
         clearPlaybackForNewRequest()
@@ -91,7 +91,7 @@ open class GiftAnimationPlayerView @JvmOverloads constructor(
         val resource = AnimationResource(
             url = url,
             format = request.format,
-            priority = priority,
+            downloadPriority = downloadPriority,
         )
         downloadTask = AnimationResourceManager.download(
             resource = resource,

@@ -7,7 +7,7 @@ GiftPlayer 是一个 Android 礼物动画与房间特效 SDK。它提供统一�
 - 内置 SVGA，按需接入 PAG、VAP
 - 支持远程 URL、`assets` 和本地文件
 - 支持单动画播放和消息队列播放
-- 支持并发下载、四级优先级和批量预加载
+- 支持并发下载、接入方自定义优先级和批量预加载
 - 相同资源共享下载任务，避免重复流量
 - 支持缓存命中、MD5 校验、容量清理和过期清理
 - 支持断点续传和弱网超时配置
@@ -157,7 +157,7 @@ playerView.play(
     AnimationRequest(
         source = AnimationSource.Url(
             url = "https://example.com/gift.svga",
-            priority = AnimationDownloadPriority.Highest,
+            downloadPriority = AppDownloadPriority.ImmediateGift.level,
         ),
         format = AnimationFormat.Auto,
         loopCount = 1,
@@ -178,16 +178,17 @@ playerView.play(
 val queueView = findViewById<GiftAnimationQueueView>(R.id.queueView)
 
 queueView.enqueue(
-    AnimationRequest(
+    request = AnimationRequest(
         source = AnimationSource.Url(
             url = animationUrl,
-            priority = AnimationDownloadPriority.Highest,
+            downloadPriority = AppDownloadPriority.ImmediateGift.level,
         ),
     ),
+    playbackPriority = AppPlaybackPriority.SelfGift.level,
 )
 ```
 
-队列采用 ready-first 规则：等待中的 URL 会并发准备；当前动画结束后，从已经准备好的消息中选择最早入队的一条播放。某条慢下载不会阻塞后面已经命中缓存或先下载完成的动画。
+队列采用 ready-first 规则：等待中的 URL 会并发准备；当前动画结束后，只在已经准备完成的消息中按照播放优先级从高到低选择，相同优先级按原始入队顺序。未下载完成的高优先级消息不会阻塞其他已准备消息，新的消息也不会中断当前动画。
 
 可以限制等待消息的有效期：
 
@@ -229,7 +230,10 @@ playerView.play(
 
 ```kotlin
 AnimationRequest(
-    source = AnimationSource.Url(url, AnimationDownloadPriority.Highest),
+    source = AnimationSource.Url(
+        url = url,
+        downloadPriority = AppDownloadPriority.ImmediateGift.level,
+    ),
     format = AnimationFormat.Auto,
     loopCount = 1,
     autoPlay = true,
@@ -283,7 +287,7 @@ val resource = AnimationResource(
     md5 = serverMd5,
     format = AnimationFormat.Svga,
     category = "gift",
-    priority = AnimationDownloadPriority.High,
+    downloadPriority = AppDownloadPriority.RealtimeGift.level,
 )
 
 val task = GiftPlayer.download(resource, object : AnimationDownloadCallback {
@@ -308,7 +312,7 @@ task.cancel()
 val resources = urls.map { url ->
     AnimationResource(
         url = url,
-        priority = AnimationDownloadPriority.Low,
+        downloadPriority = AppDownloadPriority.BatchPreload.level,
     )
 }
 
@@ -326,18 +330,32 @@ val tasks = GiftPlayer.preload(resources, object : AnimationDownloadCallback {
 tasks.forEach(AnimationDownloadTask::cancel)
 ```
 
-## 下载优先级
+## 自定义优先级
 
-优先级从高到低：
+GiftPlayer 不定义固定的业务优先级枚举。接入方分别定义下载和播放优先级，并将等级数值传给 SDK；数值越大优先级越高，数值相同时按入队顺序处理。
 
 ```kotlin
-AnimationDownloadPriority.Highest
-AnimationDownloadPriority.High
-AnimationDownloadPriority.Medium
-AnimationDownloadPriority.Low
+enum class AppDownloadPriority(val level: Int) {
+    ImmediateGift(100),
+    RealtimeGift(80),
+    PagePreload(40),
+    BatchPreload(10),
+}
+
+enum class AppPlaybackPriority(val level: Int) {
+    SelfGift(100),
+    NormalGift(50),
+    RoomEffect(20),
+}
 ```
 
-优先级只调整等待中的任务，不会抢占已经开始的下载。例如并发数为 2 时，两个 `High` 已开始下载，新的 `Highest` 会排在等待队列首位，并在任意下载槽释放后启动。
+`downloadPriority` 只调整等待中的网络任务，不会抢占已经开始的下载。例如并发数为 2 时，两个批量任务已开始下载，新的即时礼物会排在等待队列首位，并在任意下载槽释放后启动。相同 URL 的请求会共享下载，较高的新优先级会提升尚在等待的已有任务。
+
+`playbackPriority` 只作用于 `GiftAnimationQueueView` 中已经准备完成的消息。它与下载优先级完全独立：下载中的高播放优先级消息不会阻塞已准备消息，当前动画也不会被抢占。
+
+例如 A 最早入队但仍在下载，B、C 是已准备的同级消息，普通消息 N 也已准备，则先播放 B、C。之后 A 若已准备，会先于 N 播放；如果 A 仍未准备，则继续播放 N。每条动画结束后都会重新选择，不会中断当前动画。
+
+不传优先级时默认值为 `0`，已准备消息按照原始入队顺序播放，未准备消息仍不会阻塞。业务项目可以使用负数或任意更大的整数，SDK 不解释数值对应的业务名称。
 
 ```mermaid
 flowchart TD
@@ -366,7 +384,7 @@ flowchart TD
     D --> E
     E --> F{当前动画是否结束}
     F -- 否 --> F
-    F -- 是 --> G[从已准备消息中选择最早入队项]
+    F -- 是 --> G[按播放优先级和入队顺序选择已准备消息]
     G --> H[播放]
     H --> F
 ```

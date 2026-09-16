@@ -16,7 +16,6 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.core.AnimationSource
-import com.keke.giftplayer.animation.download.AnimationDownloadPriority
 import com.keke.giftplayer.animation.widget.GiftAnimationPlayerView
 
 /**
@@ -125,7 +124,10 @@ class GiftPlayerActivity : AppCompatActivity() {
         }
         playerView.play(
             AnimationRequest(
-                source = AnimationSource.Url(animationUrl, AnimationDownloadPriority.Highest),
+                source = AnimationSource.Url(
+                    url = animationUrl,
+                    downloadPriority = DemoDownloadPriority.ImmediateGift.level,
+                ),
                 format = AnimationFormat.Auto,
                 loopCount = Int.MAX_VALUE,
                 scaleType = AnimationScaleType.FitCenter,

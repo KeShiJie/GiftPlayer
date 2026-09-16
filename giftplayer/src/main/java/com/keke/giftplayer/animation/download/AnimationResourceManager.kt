@@ -101,7 +101,7 @@ internal object AnimationResourceManager {
         synchronized(lock) {
             val current = runningTasks[resourceKey]
             if (current != null) {
-                current.priority = maxPriority(current.priority, resource.priority)
+                current.downloadPriority = maxOf(current.downloadPriority, resource.downloadPriority)
                 current.callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
                 scheduleDownloadsLocked()
                 return ActiveAnimationDownloadTask(resourceKey, callbackKey)
@@ -117,7 +117,7 @@ internal object AnimationResourceManager {
                     targetFile = targetFile,
                     downloadFile = downloadFile,
                     failureFile = failureFile,
-                    priority = resource.priority,
+                    downloadPriority = resource.downloadPriority,
                 ).apply {
                     callbacks[callbackKey] = DownloadCallbackEntry(resource, callback)
                 }
@@ -201,7 +201,9 @@ internal object AnimationResourceManager {
 
     /** 创建底层 FileDownloader 下载任务。 */
     private fun createDownloadTask(download: RunningDownload): BaseDownloadTask {
-        GiftPlayerLog.i("download start: ${download.targetFile.name}, priority=${download.priority}")
+        GiftPlayerLog.i(
+            "download start: ${download.targetFile.name}, downloadPriority=${download.downloadPriority}",
+        )
         return FileDownloader.getImpl()
             .create(download.resource.url)
             .setPath(download.downloadFile.absolutePath)
@@ -256,7 +258,7 @@ internal object AnimationResourceManager {
             val next = runningTasks.values
                 .filter { it.state == DownloadState.Queued && it.callbacks.isNotEmpty() }
                 .sortedWith(
-                    compareByDescending<RunningDownload> { it.priority.level }
+                    compareByDescending<RunningDownload> { it.downloadPriority }
                         .thenBy { it.sequence }
                 )
                 .firstOrNull() ?: return
@@ -719,14 +721,6 @@ internal object AnimationResourceManager {
         }
     }
 
-    /** 选择较高的优先级。 */
-    private fun maxPriority(
-        current: AnimationDownloadPriority,
-        incoming: AnimationDownloadPriority,
-    ): AnimationDownloadPriority {
-        return if (incoming.level > current.level) incoming else current
-    }
-
     /** 判断文件是否为 Git LFS 指针文本。 */
     private fun File.isGitLfsPointer(): Boolean {
         if (length() > GIT_LFS_POINTER_MAX_SIZE) return false
@@ -792,7 +786,7 @@ internal object AnimationResourceManager {
         val targetFile: File,
         val downloadFile: File,
         val failureFile: File,
-        var priority: AnimationDownloadPriority,
+        var downloadPriority: Int,
     ) {
         val sequence = nextSequence()
         val callbacks = ConcurrentHashMap<String, DownloadCallbackEntry>()

@@ -89,14 +89,26 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         runOnMain { if (!disposed) this.config = config }
     }
 
-    /** 此播放器的 play 与 enqueue 一样，都会追加播放消息。 */
+    /** 此播放器的 play 与默认优先级 enqueue 一样，都会追加播放消息。 */
     override fun play(request: AnimationRequest) = enqueue(request)
 
-    fun enqueue(request: AnimationRequest) {
+    /**
+     * 追加一条播放消息。播放优先级由接入方定义，数值越大越先从已准备消息中播放。
+     */
+    @JvmOverloads
+    fun enqueue(request: AnimationRequest, playbackPriority: Int = 0) {
         runOnMain {
             if (disposed) return@runOnMain
-            GiftPlayerLog.i("queue enqueue: ${requestLog(request)}")
-            val entry = queue.add(Message(request), SystemClock.elapsedRealtime(), config.messageTtlMillis)
+            val entry = queue.add(
+                value = Message(request),
+                playbackPriority = playbackPriority,
+                now = SystemClock.elapsedRealtime(),
+                ttlMillis = config.messageTtlMillis,
+            )
+            GiftPlayerLog.i(
+                "queue enqueue: queueId=${entry.sequence}, playbackPriority=$playbackPriority, " +
+                    requestLog(request),
+            )
             notifyClient { onLoadStart(request) }
             if (!queue.isWaiting(entry) || disposed) return@runOnMain
             entry.ttlMillis?.let { ttl ->
@@ -177,7 +189,11 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
             return
         }
         val task = AnimationResourceManager.download(
-            AnimationResource(url = source.url, format = message.original.format, priority = source.priority),
+            AnimationResource(
+                url = source.url,
+                format = message.original.format,
+                downloadPriority = source.downloadPriority,
+            ),
             object : AnimationDownloadCallback {
                 override fun onSuccess(resource: AnimationResource, file: File) {
                     runOnMain {
@@ -186,7 +202,10 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
                         message.download = null
                         protect(message, file)
                         message.playback = message.original.copy(source = AnimationSource.FilePath(file.absolutePath))
-                        GiftPlayerLog.i("queue ready: ${requestLog(message.original)}, file=${file.name}")
+                        GiftPlayerLog.i(
+                            "queue ready: queueId=${entry.sequence}, playbackPriority=${entry.playbackPriority}, " +
+                                "${requestLog(message.original)}, file=${file.name}",
+                        )
                         ready(entry)
                     }
                 }
@@ -241,7 +260,11 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         entry.value.expiry?.let(handler::removeCallbacks)
         entry.value.expiry = null
         try {
-            GiftPlayerLog.i("queue playback start -------------> ${requestLog(entry.value.original)}")
+            GiftPlayerLog.i(
+                "queue playback start -------------> queueId=${entry.sequence}, " +
+                    "playbackPriority=${entry.playbackPriority}, " +
+                    requestLog(entry.value.original),
+            )
             super.play(entry.value.playback)
         } catch (error: Exception) {
             terminal(entry.value.playback) {
@@ -269,7 +292,10 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
         queue.remove(entry)
         clearPlaybackForNewRequest()
         clean(entry.value)
-        GiftPlayerLog.i("queue playback end: ${requestLog(entry.value.original)}")
+        GiftPlayerLog.i(
+            "queue playback end: queueId=${entry.sequence}, playbackPriority=${entry.playbackPriority}, " +
+                requestLog(entry.value.original),
+        )
         try {
             notifyClient { event(entry.value.original) }
         } finally {
@@ -279,7 +305,7 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
 
     private fun requestLog(request: AnimationRequest): String {
         val source = when (val source = request.source) {
-            is AnimationSource.Url -> "url=${source.url}, priority=${source.priority}"
+            is AnimationSource.Url -> "downloadPriority=${source.downloadPriority}，url=${source.url}"
             is AnimationSource.Asset -> "asset=${source.name}"
             is AnimationSource.FilePath -> "file=${source.path}"
         }

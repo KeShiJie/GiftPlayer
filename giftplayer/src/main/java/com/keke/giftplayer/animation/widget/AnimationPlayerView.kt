@@ -38,7 +38,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
     private var currentRequest: AnimationRequest? = null
     protected var animationCallback: AnimationCallback? = null
     //当前播放代次
-    private var requestId = 0L
+    private var playbackGeneration = 0L
     //是否已释放
     private var released = false
     //因不可见而暂停
@@ -56,7 +56,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         released = false
         pausedForVisibility = false
         val currentId = nextRequestId()
-        GiftPlayerLog.i("play requestId=$currentId, ${GiftPlayerLog.requestSummary(request)}")
+        GiftPlayerLog.i("play playbackGeneration=$currentId, ${GiftPlayerLog.requestSummary(request)}")
         currentRequest = request
         currentResolveTask.cancel()
         currentPlayer?.release()
@@ -69,12 +69,12 @@ open class AnimationPlayerView @JvmOverloads constructor(
                     if (!isCurrent(currentId)) return@runOnMain
                     val format = AnimationFormatDetector.detect(request.format, source)
                     if (format == AnimationFormat.Auto) {
-                        GiftPlayerLog.e("detect format failed requestId=$currentId, source=${GiftPlayerLog.resolvedSourceType(source)}")
+                        GiftPlayerLog.e("detect format failed playbackGeneration=$currentId, source=${GiftPlayerLog.resolvedSourceType(source)}")
                         dispatchError(currentId, request, AnimationError.UnsupportedFormat(request.source))
                         return@runOnMain
                     }
                     GiftPlayerLog.i(
-                        "source resolved requestId=$currentId, resolvedSource=${GiftPlayerLog.resolvedSourceType(source)}, format=$format"
+                        "source resolved playbackGeneration=$currentId, resolvedSource=${GiftPlayerLog.resolvedSourceType(source)}, format=$format"
                     )
                     val plugin = AnimationPlayerPluginRegistry.find(format)
                     if (plugin == null) {
@@ -121,10 +121,10 @@ open class AnimationPlayerView @JvmOverloads constructor(
             return
         }
         val request = currentRequest
-        val stoppedRequestId = requestId
-        requestId += 1
+        val stoppedRequestId = playbackGeneration
+        playbackGeneration += 1
         GiftPlayerLog.i(
-            "stop requestId=$stoppedRequestId, nextGeneration=$requestId, " +
+            "stop playbackGeneration=$stoppedRequestId, nextGeneration=$playbackGeneration, " +
                     "clear=$clear, hasRequest=${request != null}",
         )
         currentResolveTask.cancel()
@@ -140,10 +140,10 @@ open class AnimationPlayerView @JvmOverloads constructor(
         }
         if (released) return
         released = true
-        val releasedRequestId = requestId
-        requestId += 1
+        val releasedRequestId = playbackGeneration
+        playbackGeneration += 1
         GiftPlayerLog.i(
-            "release requestId=$releasedRequestId, nextGeneration=$requestId",
+            "release playbackGeneration=$releasedRequestId, nextGeneration=$playbackGeneration",
         )
         currentResolveTask.cancel()
         currentResolveTask = NoopAnimationSourceResolveTask
@@ -164,7 +164,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
             runOnMain { clearPlaybackForNewRequest() }
             return
         }
-        requestId += 1
+        playbackGeneration += 1
         currentResolveTask.cancel()
         currentPlayer?.release()
         currentPlayer = null
@@ -252,7 +252,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrent(currentId)) return
-        GiftPlayerLog.e("play error requestId=$currentId, error=${GiftPlayerLog.errorSummary(error)}")
+        GiftPlayerLog.e("play error playbackGeneration=$currentId, error=${GiftPlayerLog.errorSummary(error)}")
         currentPlayer?.release()
         currentPlayer = null
         removeAllViews()
@@ -260,12 +260,12 @@ open class AnimationPlayerView @JvmOverloads constructor(
     }
 
     private fun nextRequestId(): Long {
-        requestId += 1
-        return requestId
+        playbackGeneration += 1
+        return playbackGeneration
     }
 
     private fun isCurrent(currentId: Long): Boolean {
-        return !released && currentId == requestId
+        return !released && currentId == playbackGeneration
     }
 
     protected fun runOnMain(action: () -> Unit) {

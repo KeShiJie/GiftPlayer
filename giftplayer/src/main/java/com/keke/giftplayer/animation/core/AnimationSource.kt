@@ -1,7 +1,5 @@
 package com.keke.giftplayer.animation.core
 
-import com.keke.giftplayer.animation.download.AnimationDownloadPriority
-
 /**
  * Created by keke on 2026/4/16.
  * Desc: Animation source.
@@ -9,7 +7,8 @@ import com.keke.giftplayer.animation.download.AnimationDownloadPriority
 sealed class AnimationSource {
     data class Url(
         val url: String,
-        val priority: AnimationDownloadPriority = AnimationDownloadPriority.Highest,
+        /** 下载等待队列中的优先级数值；数值越大越先下载，由接入方定义。 */
+        val downloadPriority: Int = 0,
     ) : AnimationSource()
     data class FilePath(val path: String) : AnimationSource()
     data class Asset(val name: String) : AnimationSource()

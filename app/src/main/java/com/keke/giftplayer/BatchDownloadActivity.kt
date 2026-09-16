@@ -12,7 +12,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.keke.giftplayer.animation.download.AnimationDownloadCallback
-import com.keke.giftplayer.animation.download.AnimationDownloadPriority
 import com.keke.giftplayer.animation.download.AnimationDownloadTask
 import com.keke.giftplayer.animation.download.AnimationResource
 import java.io.File
@@ -91,7 +90,12 @@ class BatchDownloadActivity : AppCompatActivity() {
         tasks = emptyList()
         rows.clear()
         rowsContainer.removeAllViews()
-        val resources = urls.map { AnimationResource(url = it, priority = AnimationDownloadPriority.Low) }
+        val resources = urls.map {
+            AnimationResource(
+                url = it,
+                downloadPriority = DemoDownloadPriority.BatchPreload.level,
+            )
+        }
         resources.forEachIndexed { index, resource ->
             val label = TextView(this).apply {
                 text = "${index + 1}. ${resource.url}"

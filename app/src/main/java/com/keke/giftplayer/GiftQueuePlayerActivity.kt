@@ -17,7 +17,6 @@ import com.keke.giftplayer.animation.core.AnimationFormat
 import com.keke.giftplayer.animation.core.AnimationRequest
 import com.keke.giftplayer.animation.core.AnimationScaleType
 import com.keke.giftplayer.animation.core.AnimationSource
-import com.keke.giftplayer.animation.download.AnimationDownloadPriority
 import com.keke.giftplayer.animation.widget.GiftAnimationQueueView
 
 /**
@@ -69,11 +68,19 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
 
     private fun bindActions() {
         findViewById<Button>(R.id.playButton).setOnClickListener {
-            enqueueFromRemoteUrl(getUrl(), AnimationDownloadPriority.High)
+            enqueueFromRemoteUrl(
+                url = getUrl(),
+                downloadPriority = DemoDownloadPriority.RealtimeGift,
+                playbackPriority = DemoPlaybackPriority.NormalGift,
+            )
         }
         findViewById<Button>(R.id.addTopButton).setOnClickListener {
-            //插入一条高优先级的，场景：直播间自己发送的礼物 优先级最高
-            enqueueFromRemoteUrl(getUrl(), AnimationDownloadPriority.Highest)
+            // 自己发送的礼物同时使用更高的下载和播放优先级。
+            enqueueFromRemoteUrl(
+                url = getUrl(),
+                downloadPriority = DemoDownloadPriority.ImmediateGift,
+                playbackPriority = DemoPlaybackPriority.SelfGift,
+            )
         }
         findViewById<Button>(R.id.playAssetButton).setOnClickListener {
             enqueueFromAssetFile()
@@ -123,17 +130,25 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
         })
     }
 
-    private fun enqueueFromRemoteUrl(url: String,priority:AnimationDownloadPriority) {
+    private fun enqueueFromRemoteUrl(
+        url: String,
+        downloadPriority: DemoDownloadPriority,
+        playbackPriority: DemoPlaybackPriority,
+    ) {
         enqueue(
-            AnimationRequest(
-                source = AnimationSource.Url(url, priority),
+            request = AnimationRequest(
+                source = AnimationSource.Url(
+                    url = url,
+                    downloadPriority = downloadPriority.level,
+                ),
                 format = selectedFormat(),
                 loopCount = 1,
                 scaleType = AnimationScaleType.FitCenter,
                 fillMode = AnimationFillMode.Clear,
                 enableAudio = true,
                 pauseWhenInvisible = false,
-            )
+            ),
+            playbackPriority = playbackPriority,
         )
     }
 
@@ -166,9 +181,15 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
         )
     }
 
-    private fun enqueue(request: AnimationRequest) {
-        showStatus("Enqueued ${request.source.label()} as ${request.format.name}")
-        playerView.enqueue(request)
+    private fun enqueue(
+        request: AnimationRequest,
+        playbackPriority: DemoPlaybackPriority = DemoPlaybackPriority.NormalGift,
+    ) {
+        showStatus(
+            "Enqueued ${request.source.label()} as ${request.format.name}, " +
+                "playbackPriority=${playbackPriority.level}",
+        )
+        playerView.enqueue(request, playbackPriority.level)
     }
 
     private fun selectedFormat(): AnimationFormat {

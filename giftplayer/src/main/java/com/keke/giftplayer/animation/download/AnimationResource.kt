@@ -23,5 +23,6 @@ data class AnimationResource(
     /** 资源类别，例如礼物、房间或公共区域。 */
     val category: String? = null,
 
-    val priority: AnimationDownloadPriority,
+    /** 下载等待队列中的优先级数值；数值越大越先下载，由接入方定义。 */
+    val downloadPriority: Int = 0,
 )

@@ -7,7 +7,7 @@ and `lib_download` initialization. Single-play views retain replacement semantic
 
 ## Signatures
 
-- `enqueue(AnimationRequest)` prepares one independent playback entry.
+- `enqueue(AnimationRequest, playbackPriority: Int = 0)` prepares one independent playback entry.
 - `clearQueue()` clears waiting/prepared entries, preserving the active animation.
 - `stop(clear)` stops the active animation and clears waiting entries.
 - `release()` cancels owned work and releases protected files and callbacks.
@@ -17,8 +17,12 @@ and `lib_download` initialization. Single-play views retain replacement semantic
 
 ## Contracts
 
-Ready order determines playback order. Download priorities only order queued network
-work. Cache hits and local resources must not wait behind another resource download.
+Among ready entries, numeric playback priority descending and original enqueue order
+ascending determine playback order. An unready high-priority entry never blocks a
+ready entry and no queued entry preempts active playback. Download priority is an
+independent integer that only orders queued network work. Higher values run first;
+equal values use enqueue order. The SDK defines no business priority enum. Cache hits
+and local resources must not wait behind another resource download.
 Duplicate messages remain independent even when they share a download. Original
 requests are preserved in external callbacks. Cache protection covers the interval
 from resource readiness through playback cleanup. Internal scheduling must continue
@@ -42,6 +46,8 @@ instance, not only the resource key. Shared cancellation only removes that calle
 
 - Base: A downloads and then plays.
 - Good: A downloads slowly; cached B plays first; A waits if B is still playing.
+- Good: unready high-priority A does not block ready same-priority B/C or ready normal messages.
+- Good: consumers define separate download and playback enums and pass their integer levels.
 - Bad: enqueue delegates immediately to parent `play(Url)` and cancels A.
 
 ## Tests Required
