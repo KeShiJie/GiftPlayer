@@ -54,20 +54,18 @@ object GiftPlayer {
         GiftPlayerLog.setLogger(logger)
     }
 
+    /**
+     * 批量预加载，适用常用礼物预先准备
+     */
     @JvmStatic
     fun preload(
         resources: List<AnimationResource>,
-        callback: AnimationDownloadCallback,
+        callback: AnimationDownloadCallback ? =null,
     ): List<AnimationDownloadTask> {
         ensureInitialized()
         return AnimationResourceManager.preload(resources, callback)
     }
 
-    @JvmStatic
-    fun preload(resources: List<AnimationResource>): List<AnimationDownloadTask> {
-        ensureInitialized()
-        return AnimationResourceManager.preload(resources)
-    }
 
     @JvmStatic
     fun download(resource: AnimationResource, callback: AnimationDownloadCallback): AnimationDownloadTask {
@@ -92,8 +90,7 @@ object GiftPlayer {
     }
 
 
-
-    /** 异步统计缓存大小；统计在 I/O 线程执行，结果在主线程回调。 */
+    /** 异步统计缓存大小 */
     @JvmStatic
     fun getCacheSizeAsync(callback: (Long) -> Unit) {
         ensureInitialized()
@@ -101,14 +98,14 @@ object GiftPlayer {
     }
 
 
-    /** 异步清理过期缓存；清理在 I/O 线程执行，完成后在主线程回调。 */
+    /** 异步清理过期缓存 */
     @JvmStatic
     fun clearExpiredCacheAsync(callback: () -> Unit) {
         ensureInitialized()
         AnimationResourceManager.clearExpiredAsync(callback)
     }
 
-    /** 异步清理缓存；清理在 I/O 线程执行，完成后在主线程回调。 */
+    /** 异步清理缓存 */
     @JvmStatic
     fun clearCacheAsync(callback: () -> Unit) {
         ensureInitialized()

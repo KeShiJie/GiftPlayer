@@ -67,20 +67,14 @@ internal object AnimationResourceManager {
         }
     }
 
-    /** 批量预加载资源，为每次资源请求返回独立的任务句柄。 */
-    fun preload(
-        resources: List<AnimationResource>,
-    ): List<AnimationDownloadTask> {
-        return preload(resources, NoopAnimationDownloadCallback)
-    }
 
     /** 批量预加载资源，并向调用方回调每个资源的处理结果。 */
     fun preload(
         resources: List<AnimationResource>,
-        callback: AnimationDownloadCallback,
+        callback: AnimationDownloadCallback?=null,
     ): List<AnimationDownloadTask> {
         return resources.map { resource ->
-            download(resource, callback)
+            download(resource, callback ?: NoopAnimationDownloadCallback)
         }
     }
 
@@ -143,7 +137,7 @@ internal object AnimationResourceManager {
         return getValidCachedFileIfNotDownloading(resource)
     }
 
-    /** 在缓存 I/O 线程查询有效缓存文件，结果在主线程回调。 */
+    /** 查询有效缓存文件 */
     fun getCachedFileAsync(resource: AnimationResource, callback: (File?) -> Unit) {
         cacheExecutor.execute {
             val file = runCacheOperation("get cached file", null) {
@@ -158,7 +152,7 @@ internal object AnimationResourceManager {
         return getValidCachedFileIfNotDownloading(resource) != null
     }
 
-    /** 在缓存 I/O 线程判断资源是否存在有效缓存文件，结果在主线程回调。 */
+    /** 判断资源是否存在有效缓存文件，结果在主线程回调。 */
     fun isCachedAsync(resource: AnimationResource, callback: (Boolean) -> Unit) {
         cacheExecutor.execute {
             val cached = runCacheOperation("check cached file", false) {
@@ -202,7 +196,7 @@ internal object AnimationResourceManager {
         trimCacheSize()
     }
 
-    /** 在缓存 I/O 线程清理过期缓存，完成后在主线程回调。 */
+    /** 清理过期缓存。 */
     fun clearExpiredAsync(callback: () -> Unit) {
         cacheExecutor.execute {
             runCacheOperation("clear expired cache") { clearExpired() }
@@ -222,7 +216,7 @@ internal object AnimationResourceManager {
             }
     }
 
-    /** 在缓存 I/O 线程清理缓存，完成后在主线程回调。 */
+    /** 清理缓存 */
     fun clearAllAsync(callback: () -> Unit) {
         cacheExecutor.execute {
             runCacheOperation("clear cache") { clearAll() }
@@ -960,7 +954,7 @@ internal object AnimationResourceManager {
         override fun cancel() = Unit
     }
 
-    /** 默认预加载回调，不向外分发结果。 */
+    /** 不向外分发结果。 */
     private object NoopAnimationDownloadCallback : AnimationDownloadCallback {
         override fun onSuccess(resource: AnimationResource, file: File) = Unit
 

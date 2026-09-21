@@ -1,18 +1,20 @@
 # GiftPlayer
 
-GiftPlayer 是一个 Android 礼物动画与房间特效 SDK。它提供统一的 SVGA、PAG、VAP 播放接口，并内置 URL 下载、缓存、优先级调度、批量预加载和顺序播放能力。核心包内置定制版 SVGA，PAG 和 VAP 通过可选插件接入，业务项目可以自行选择第三方播放引擎版本。
+GiftPlayer 是一个 Android 礼物动画和房间特效 SDK，提供统一的 SVGA、PAG、VAP 播放接口，以及 URL 下载、磁盘缓存、优先级调度、批量预加载和队列播放能力。
 
-## 支持能力
+SVGA 已内置在核心模块中。PAG 和 VAP 采用可选插件模块，接入方可以自行选择实际使用的播放引擎及其版本。
 
-- 内置 SVGA，按需接入 PAG、VAP
+## 功能
+
+- 支持 SVGA、PAG、VAP 播放
 - 支持远程 URL、`assets` 和本地文件
-- 支持单动画播放和消息队列播放
-- 支持并发下载、接入方自定义优先级和批量预加载
-- 相同资源共享下载任务，避免重复流量
-- 支持缓存命中、MD5 校验、容量清理和过期清理
-- 支持断点续传和弱网超时配置
-- 支持播放、下载进度和错误回调
-- 支持 Logcat 和业务自定义日志接收器
+- 支持最新请求覆盖播放，以及礼物消息队列播放
+- 支持下载优先级和播放优先级，二者相互独立
+- 支持缓存命中、相同资源共享下载、MD5 校验和断点续传
+- 支持单个下载、批量预加载和下载进度回调
+- 支持缓存容量控制、过期缓存清理和缓存查询
+- 支持弱网超时配置
+- 支持 Logcat 和业务日志接收器
 
 ## 环境要求
 
@@ -39,57 +41,49 @@ dependencyResolutionManagement {
 }
 ```
 
-`FAIL_ON_PROJECT_REPOS` 表示所有仓库都在 `settings.gradle.kts` 统一管理。如果工程已有其他仓库管理策略，只需确保 `https://jitpack.io` 可用。
+`FAIL_ON_PROJECT_REPOS` 表示仓库统一在 `settings.gradle.kts` 中管理。如果项目使用其他仓库管理策略，只需确保可以访问 `https://jitpack.io`。
 
-### 只使用 SVGA
+下面的 `VERSION` 应替换为 GitHub Release 对应的 Tag，例如 `v2.0.0`。同一次发布的 GiftPlayer 模块必须使用相同版本。
 
-核心包已经包含本项目维护的定制版 SVGA，不需要额外添加 SVGAPlayer：
+### 仅使用 SVGA
+
+核心模块内置定制版 SVGA，无需额外引入 SVGAPlayer：
 
 ```kotlin
 dependencies {
-    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v2.0.0")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:VERSION")
 }
 ```
 
-### 接入 PAG
+### 使用 PAG
 
-接入方显式选择 `libpag` 版本，并添加 GiftPlayer 的 PAG 适配插件：
+PAG 引擎版本由接入方控制，适配插件不会传递 `libpag`：
 
 ```kotlin
 dependencies {
-    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v2.0.0")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:VERSION")
     implementation("com.tencent.tav:libpag:4.5.75")
-    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-pag:v2.0.0")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-pag:VERSION")
 }
 ```
 
-### 接入 VAP
+### 使用 VAP
 
-接入方显式选择 VAP 版本，并添加 GiftPlayer 的 VAP 适配插件：
+VAP 引擎版本同样由接入方控制，适配插件不会传递 VAP：
 
 ```kotlin
 dependencies {
-    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:v2.0.0")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer:VERSION")
     implementation("io.github.tencent:vap:2.0.28")
-    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-vap:v2.0.0")
+    implementation("com.github.KeShiJie.GiftPlayer:giftplayer-vap:VERSION")
 }
 ```
 
-只添加实际使用的格式即可。PAG/VAP 插件不会传递第三方播放引擎，最终版本完全由接入工程控制。请将示例版本替换为 GitHub Releases 中实际发布的 Tag；同一次发布的三个 GiftPlayer 模块应使用相同版本。
-
-### 当前验证版本
-
-| GiftPlayer 模块 | 第三方引擎 | 当前编译验证版本 |
-| --- | --- | --- |
-| `giftplayer` | 内置定制版 SVGA | 随核心包发布 |
-| `giftplayer-pag` | `com.tencent.tav:libpag` | `4.5.75` |
-| `giftplayer-vap` | `io.github.tencent:vap` | `2.0.28` |
-
-接入其他引擎版本前，应确认其公开 API 与上表版本兼容，并在目标设备上完成播放测试。
+只引入实际使用的格式即可。当前项目编译验证的引擎版本为 `libpag 4.5.75` 和 `vap 2.0.28`；替换引擎版本后，请在目标设备完成播放验证。
 
 ## 初始化
 
-SDK 只需要初始化一次。建议在 `Application.onCreate()` 中完成：
+在 `Application.onCreate()` 中初始化一次：
 
 ```kotlin
 class App : Application() {
@@ -100,7 +94,7 @@ class App : Application() {
 }
 ```
 
-使用 PAG 或 VAP 时，需要在同一次初始化中注册对应插件：
+使用 PAG 或 VAP 时，在初始化时注册已引入的插件：
 
 ```kotlin
 GiftPlayer.initialize(
@@ -112,9 +106,9 @@ GiftPlayer.initialize(
 )
 ```
 
-只注册已经添加依赖且实际需要的插件。例如项目只播放 PAG，则只添加 PAG 的两条依赖并注册 `PagPlayerPlugin()`。
+只播放 PAG 时，只添加 PAG 依赖并注册 `PagPlayerPlugin()`。未注册对应插件时，播放会回调 `AnimationError.PlayerPluginMissing(format)`。
 
-需要自定义下载、缓存或日志时：
+初始化支持下载、缓存和日志配置：
 
 ```kotlin
 GiftPlayer.initialize(
@@ -122,6 +116,7 @@ GiftPlayer.initialize(
     config = GiftPlayerConfig(
         maxConcurrentDownloads = 2,
         maxCacheSizeBytes = 300L * 1024L * 1024L,
+        maxCacheAgeMillis = 30L * 24L * 60L * 60L * 1000L,
         connectTimeoutMillis = 20_000,
         readTimeoutMillis = 30_000,
         downloadTimeoutMillis = 180_000L,
@@ -130,26 +125,14 @@ GiftPlayer.initialize(
 )
 ```
 
-重复调用 `initialize()` 会被忽略。不要在每个 Activity 中重复初始化。
+重复调用 `initialize()` 会被忽略，不能通过重复初始化替换配置或插件。初始化不会扫描或清理缓存；缓存维护需要由业务方主动调用对应 API。
 
-初始化默认不扫描或清理动画缓存，避免阻塞应用启动。需要主动清理时，使用异步 API：
-
-```kotlin
-GiftPlayer.clearExpiredCacheAsync {
-    // 清理完成，回调在主线程。
-}
-```
-
-如确实需要在初始化阶段清理缓存，可显式设置 `clearExpiredOnInitialize = true`，但不建议在冷启动路径使用。
-
-如果请求了 PAG 或 VAP 动画，但初始化时没有注册对应插件，播放回调会收到 `AnimationError.PlayerPluginMissing(format)`。这类错误表示适配插件未注册，不是文件下载或解码失败。
-
-## 选择播放器
+## 播放器选择
 
 | 场景 | View | 行为 |
 | --- | --- | --- |
-| 页面只展示最新一条动画 | `GiftAnimationPlayerView` | 新请求替换当前请求 |
-| 连续收到礼物或房间特效 | `GiftAnimationQueueView` | 资源并发准备，动画逐条播放 |
+| 页面只展示最新一条动画 | `GiftAnimationPlayerView` | 新请求取消等待中的旧 URL 请求，并替换当前播放 |
+| 连续礼物、房间特效 | `GiftAnimationQueueView` | 多条资源并发准备，已准备消息按规则顺序播放 |
 
 ### 单动画播放器
 
@@ -161,13 +144,12 @@ GiftPlayer.clearExpiredCacheAsync {
 ```
 
 ```kotlin
-val playerView = findViewById<GiftAnimationPlayerView>(R.id.playerView)
-
 playerView.play(
     AnimationRequest(
+        traceId = giftMessageId,
         source = AnimationSource.Url(
             url = "https://example.com/gift.svga",
-            downloadPriority = AppDownloadPriority.ImmediateGift.level,
+            downloadPriority = AppDownloadPriority.Realtime.level,
         ),
         format = AnimationFormat.Auto,
         loopCount = 1,
@@ -185,22 +167,21 @@ playerView.play(
 ```
 
 ```kotlin
-val queueView = findViewById<GiftAnimationQueueView>(R.id.queueView)
-
 queueView.enqueue(
     request = AnimationRequest(
+        traceId = giftMessageId,
         source = AnimationSource.Url(
             url = animationUrl,
-            downloadPriority = AppDownloadPriority.ImmediateGift.level,
+            downloadPriority = AppDownloadPriority.Realtime.level,
         ),
     ),
     playbackPriority = AppPlaybackPriority.SelfGift.level,
 )
 ```
 
-队列采用 ready-first 规则：等待中的 URL 会并发准备；当前动画结束后，只在已经准备完成的消息中按照播放优先级从高到低选择，相同优先级按原始入队顺序。未下载完成的高优先级消息不会阻塞其他已准备消息，新的消息也不会中断当前动画。
+队列采用 ready-first 规则：URL 资源会并发准备，缓存命中和本地资源可直接就绪。当前动画结束后，仅从已准备消息中选择下一条，先比较播放优先级，再比较入队顺序。未准备的高优先级消息不会阻塞已准备消息，也不会中断当前播放。
 
-可以限制等待消息的有效期：
+可为等待中的消息设置有效期：
 
 ```kotlin
 queueView.setQueueConfig(
@@ -208,11 +189,59 @@ queueView.setQueueConfig(
 )
 ```
 
-TTL 只作用于等待消息，不会中断已经开始播放的动画。
+`messageTtlMillis` 为 `null` 时不超时。超时只会取消尚未开始播放的消息，不会中断正在播放的动画。
 
-## 本地资源
+```mermaid
+flowchart TD
+    A[入队播放消息] --> B{资源是否已就绪}
+    B -- 本地资源或缓存命中 --> C[标记为已准备]
+    B -- URL 未缓存 --> D[进入下载调度]
+    D --> C
+    C --> E{当前是否正在播放}
+    E -- 是 --> E
+    E -- 否 --> F[从已准备消息中选择播放优先级最高且最早入队的一条]
+    F --> G[开始播放]
+    G --> E
+```
 
-将文件放入接入工程的 `src/main/assets`：
+## 资源来源与播放请求
+
+`AnimationRequest` 表示一条播放消息。建议使用服务端的礼物消息 ID 作为 `traceId`，便于把下载、队列和播放日志关联起来；未传入时 SDK 自动生成 UUID。
+
+```kotlin
+AnimationRequest(
+    traceId = giftMessageId,
+    source = AnimationSource.Url(
+        url = url,
+        downloadPriority = AppDownloadPriority.Realtime.level,
+    ),
+    format = AnimationFormat.Auto,
+    loopCount = 1,
+    autoPlay = true,
+    scaleType = AnimationScaleType.FitCenter,
+    fillMode = AnimationFillMode.Forward,
+    enableAudio = true,
+    pauseWhenInvisible = false,
+)
+```
+
+| 参数 | 说明 |
+| --- | --- |
+| `source` | `Url`、`Asset` 或 `FilePath` |
+| `traceId` | 单次播放消息的链路标识 |
+| `format` | `Auto`、`Svga`、`Pag`、`Vap`；`Auto` 按扩展名识别 |
+| `loopCount` | 播放次数 |
+| `autoPlay` | 加载完成后是否自动播放 |
+| `scaleType` | `FitCenter`、`CenterCrop`、`FitXY` |
+| `fillMode` | 播放完成后的画面状态；当前主要由 SVGA 使用 |
+| `enableAudio` | 是否播放内置音频；当前由 VAP 使用 |
+| `pauseWhenInvisible` | View 不可见时是否暂停 |
+
+`AnimationFormat.Auto` 支持 `.svga`、`.pag`、`.vap` 和 `.mp4` 扩展名。无法识别时请显式传入 `format`。
+
+### 本地资源
+
+将资源放入接入工程的 `src/main/assets`：
 
 ```kotlin
 playerView.play(
@@ -234,51 +263,23 @@ playerView.play(
 )
 ```
 
-只有 `AnimationSource.Url` 会进入下载系统并使用下载优先级。
+只有 `AnimationSource.Url` 会进入下载与缓存流程；`Asset` 和 `FilePath` 不使用下载优先级。
 
-## AnimationRequest
-
-```kotlin
-AnimationRequest(
-    source = AnimationSource.Url(
-        url = url,
-        downloadPriority = AppDownloadPriority.ImmediateGift.level,
-    ),
-    format = AnimationFormat.Auto,
-    loopCount = 1,
-    autoPlay = true,
-    scaleType = AnimationScaleType.FitCenter,
-    fillMode = AnimationFillMode.Forward,
-    enableAudio = true,
-    pauseWhenInvisible = false,
-)
-```
-
-| 参数 | 说明 |
-| --- | --- |
-| `source` | URL、assets 或本地文件路径 |
-| `format` | `Auto`、`Svga`、`Pag`、`Vap` |
-| `loopCount` | 播放次数 |
-| `autoPlay` | 加载完成后是否自动播放 |
-| `scaleType` | 动画缩放方式 |
-| `fillMode` | 播放结束后的画面保留方式，目前主要用于 SVGA |
-| `enableAudio` | 是否播放动画内置音频，目前用于 VAP |
-| `pauseWhenInvisible` | View 不可见时是否暂停 |
-
-## 播放回调
+## 播放回调与生命周期
 
 ```kotlin
 playerView.setCallback(object : AnimationCallback {
     override fun onLoadStart(request: AnimationRequest) = Unit
     override fun onStart(request: AnimationRequest) = Unit
     override fun onProgress(request: AnimationRequest, progress: Float) = Unit
+    override fun onRepeat(request: AnimationRequest) = Unit
     override fun onComplete(request: AnimationRequest) = Unit
     override fun onCancel(request: AnimationRequest) = Unit
     override fun onError(request: AnimationRequest, error: AnimationError) = Unit
 })
 ```
 
-Activity 或 Fragment 销毁时释放播放器：
+播放器在从 Window 分离时会自动 `release()`。如果 View 生命周期由业务方手动管理，也可以在 `onDestroy()` 中显式释放：
 
 ```kotlin
 override fun onDestroy() {
@@ -287,17 +288,20 @@ override fun onDestroy() {
 }
 ```
 
-## 单个下载
+## 下载与预加载
+
+### 单个下载
 
 ```kotlin
 val resource = AnimationResource(
     id = "gift_1001",
-    url = animationUrl,
     version = "1",
     md5 = serverMd5,
-    format = AnimationFormat.Svga,
     category = "gift",
-    downloadPriority = AppDownloadPriority.RealtimeGift.level,
+    traceId = giftMessageId,
+    url = animationUrl,
+    format = AnimationFormat.Svga,
+    downloadPriority = AppDownloadPriority.Realtime.level,
 )
 
 val task = GiftPlayer.download(resource, object : AnimationDownloadCallback {
@@ -308,21 +312,24 @@ val task = GiftPlayer.download(resource, object : AnimationDownloadCallback {
     ) = Unit
 
     override fun onSuccess(resource: AnimationResource, file: File) = Unit
+
     override fun onError(resource: AnimationResource, error: Throwable?) = Unit
 })
 
 task.cancel()
 ```
 
-回调在主线程执行。相同资源同时被多个调用方请求时会共享底层下载，但各自持有独立的 `AnimationDownloadTask`。一个调用方取消不会直接取消其他调用方仍需要的下载。
+下载回调在主线程分发。`totalBytes <= 0` 表示服务端未提供总大小。缓存命中也会异步回调 `onSuccess`。
 
-## 批量预加载
+相同资源同时被多个调用方请求时会共享一次底层下载，每个调用方仍有独立的 `AnimationDownloadTask`。取消一个任务只会移除该调用方的回调；没有其他调用方等待时，底层下载才会暂停。
+
+### 批量预加载
 
 ```kotlin
 val resources = urls.map { url ->
     AnimationResource(
         url = url,
-        downloadPriority = AppDownloadPriority.BatchPreload.level,
+        downloadPriority = AppDownloadPriority.Batch.level,
     )
 }
 
@@ -334,22 +341,24 @@ val tasks = GiftPlayer.preload(resources, object : AnimationDownloadCallback {
     ) = Unit
 
     override fun onSuccess(resource: AnimationResource, file: File) = Unit
+
     override fun onError(resource: AnimationResource, error: Throwable?) = Unit
 })
 
 tasks.forEach(AnimationDownloadTask::cancel)
 ```
 
-## 自定义优先级
+预加载只下载并写入缓存，不会触发播放。之后播放相同资源时会优先命中缓存。
 
-GiftPlayer 不定义固定的业务优先级枚举。接入方分别定义下载和播放优先级，并将等级数值传给 SDK；数值越大优先级越高，数值相同时按入队顺序处理。
+## 优先级规则
+
+GiftPlayer 不定义业务优先级枚举。接入方应分别定义下载与播放优先级，数值越大，优先级越高。
 
 ```kotlin
 enum class AppDownloadPriority(val level: Int) {
-    ImmediateGift(100),
-    RealtimeGift(80),
-    PagePreload(40),
-    BatchPreload(10),
+    Realtime(80),
+    PanelPreload(40),
+    Batch(10),
 }
 
 enum class AppPlaybackPriority(val level: Int) {
@@ -359,88 +368,78 @@ enum class AppPlaybackPriority(val level: Int) {
 }
 ```
 
-`downloadPriority` 只调整等待中的网络任务，不会抢占已经开始的下载。例如并发数为 2 时，两个批量任务已开始下载，新的即时礼物会排在等待队列首位，并在任意下载槽释放后启动。相同 URL 的请求会共享下载，较高的新优先级会提升尚在等待的已有任务。
+`downloadPriority` 只影响尚未开始的 URL 下载任务：按优先级从高到低调度，同优先级按入队顺序。它不会抢占已开始的下载。相同 URL 已在等待下载时，新的更高优先级请求会提升这条共享下载任务的优先级。
 
-`playbackPriority` 只作用于 `GiftAnimationQueueView` 中已经准备完成的消息。它与下载优先级完全独立：下载中的高播放优先级消息不会阻塞已准备消息，当前动画也不会被抢占。
-
-例如 A 最早入队但仍在下载，B、C 是已准备的同级消息，普通消息 N 也已准备，则先播放 B、C。之后 A 若已准备，会先于 N 播放；如果 A 仍未准备，则继续播放 N。每条动画结束后都会重新选择，不会中断当前动画。
-
-不传优先级时默认值为 `0`，已准备消息按照原始入队顺序播放，未准备消息仍不会阻塞。业务项目可以使用负数或任意更大的整数，SDK 不解释数值对应的业务名称。
+`playbackPriority` 只影响 `GiftAnimationQueueView` 已准备消息的选择顺序。它不影响下载调度，也不会抢占正在播放的动画。
 
 ```mermaid
 flowchart TD
-    A[提交 URL 资源] --> B{缓存是否有效}
+    A[提交 URL 资源] --> B{有效缓存}
     B -- 是 --> C[主线程回调成功]
-    B -- 否 --> D{相同资源是否正在下载}
-    D -- 是 --> E[复用下载并登记独立回调]
-    D -- 否 --> F[按优先级和入队顺序进入等待队列]
-    F --> G{是否有并发槽位}
+    B -- 否 --> D{相同资源下载中或等待中}
+    D -- 是 --> E[复用下载任务并登记独立回调]
+    D -- 否 --> F[按下载优先级和入队顺序等待]
+    F --> G{有可用并发槽位}
     G -- 否 --> F
-    G -- 是 --> H[开始或断点续传]
-    H --> I{下载和校验是否成功}
-    I -- 是 --> J[写入缓存并通知全部有效回调]
-    I -- 否 --> K[清理状态并回调错误]
-```
-
-## 队列播放流程
-
-```mermaid
-flowchart TD
-    A[收到播放消息] --> B{资源类型}
-    B -- assets 或本地文件 --> E[标记为已准备]
-    B -- URL --> C{缓存命中}
-    C -- 是 --> E
-    C -- 否 --> D[并发下载]
-    D --> E
-    E --> F{当前动画是否结束}
-    F -- 否 --> F
-    F -- 是 --> G[按播放优先级和入队顺序选择已准备消息]
-    G --> H[播放]
-    H --> F
+    G -- 是 --> H[开始或续传下载]
+    H --> I{下载和校验成功}
+    I -- 是 --> J[写入缓存并回调全部有效调用方]
+    I -- 否 --> K[清理任务状态并回调错误]
 ```
 
 ## 缓存管理
 
+所有公开缓存 API 都是异步 API：磁盘访问在 SDK 的 I/O 线程执行，回调固定回到主线程。
+
 ```kotlin
 GiftPlayer.isCachedAsync(resource) { cached ->
-    // 回调在主线程。
+    // 是否存在有效缓存。
 }
 
-GiftPlayer.getCachedFileAsync(resource) { cachedFile ->
-    // 没有有效缓存时，cachedFile 为 null。
+GiftPlayer.getCachedFileAsync(resource) { file ->
+    // 没有有效缓存时为 null。
 }
 
-GiftPlayer.getCacheSizeAsync { cacheSizeBytes ->
-    // 已获取缓存大小。
+GiftPlayer.getCacheSizeAsync { bytes ->
+    // 当前缓存大小，单位为字节。
 }
 
 GiftPlayer.clearExpiredCacheAsync {
-    // 过期缓存清理完成。
+    // 清理过期资源和容量超限资源完成。
 }
 
 GiftPlayer.clearCacheAsync {
-    // 未受保护缓存清理完成。
+    // 清理全部可删除缓存完成。
 }
 ```
 
-异步缓存 API 在内部 I/O 线程执行文件访问，回调固定在主线程。同步版本仍可用于工作线程，并标记为 `@WorkerThread`。正在播放并受保护的文件不会被缓存清理误删。
+| 配置 | 默认值 | 实际行为 |
+| --- | ---: | --- |
+| `maxCacheSizeBytes` | 300 MiB | 每次网络下载成功且成功回调结束后，SDK 在 I/O 线程按最后使用时间裁剪缓存；调用 `clearExpiredCacheAsync` 时也会裁剪。 |
+| `maxCacheAgeMillis` | 30 天 | 仅在调用 `clearExpiredCacheAsync` 时检查并删除超过保留时间的缓存。 |
+
+`clearExpiredCacheAsync` 先删除过期缓存，再按 `maxCacheSizeBytes` 裁剪。`clearCacheAsync` 删除全部未受保护的缓存，不按缓存时长和容量阈值筛选。
+
+正在下载、正在播放或已交给播放器等待播放的文件会被保护，缓存清理不会删除它们。因此容量上限是尽力满足的限制：当所有文件都受保护时，缓存可能暂时超过上限，后续下载成功或下一次主动过期清理时会再次尝试裁剪。
 
 ## 弱网配置
 
-默认值适用于最大约 5 MiB 的动画资源，并为海外弱网保留了足够时间：
+默认值适用于最大约 5 MiB 的动画资源，并为海外弱网保留下载时间：
 
 | 配置 | 默认值 | 含义 |
 | --- | ---: | --- |
-| `connectTimeoutMillis` | 20 秒 | 建立连接超时 |
-| `readTimeoutMillis` | 30 秒 | 单次等待读取数据超时 |
-| `downloadTimeoutMillis` | 180 秒 | 开始下载后的总超时，不含排队时间 |
+| `connectTimeoutMillis` | 20 秒 | 建立网络连接的超时 |
+| `readTimeoutMillis` | 30 秒 | 已连接后等待读取数据的超时 |
+| `downloadTimeoutMillis` | 180 秒 | 实际开始下载后的总超时，不包含排队时间 |
 | `maxConcurrentDownloads` | 2 | 同时运行的下载数 |
-| `resumeDownloadEnabled` | `true` | 是否允许断点续传 |
-| `maxResumableFailureCount` | 3 | 连续续传失败后清理临时文件的阈值 |
+| `resumeDownloadEnabled` | `true` | 是否复用临时文件断点续传 |
+| `maxResumableFailureCount` | 3 | 同一资源连续续传失败后清理临时文件的阈值 |
 
-## 自定义日志
+`readTimeoutMillis` 不是整个文件的总下载时长；总时长由 `downloadTimeoutMillis` 控制。
 
-Logcat 默认关闭。开启 Logcat 不影响自定义日志接收器，两者相互独立：
+## 日志
+
+Logcat 默认关闭。业务日志接收器与 Logcat 相互独立，即使 `logcatEnabled = false`，`logger` 仍会收到日志：
 
 ```kotlin
 GiftPlayer.initialize(
@@ -454,17 +453,15 @@ GiftPlayer.initialize(
 )
 ```
 
-即使 `logcatEnabled = false`，`logger` 仍然会收到日志。日志可能从多个线程同步回调，上传或写文件应转交到自己的异步队列。
+日志在产生它的线程同步回调，可能来自多个线程。日志上传、数据库写入等耗时操作应转交给业务线程池。SDK 会强引用 `logger`，请传入 Application 级对象，不要在闭包中持有 Activity、Fragment 或 View。
 
-SDK 会强引用日志接收器。请传入 Application 级对象，不要在闭包中捕获 Activity、Fragment 或 View。
-
-日志统一使用以下格式，便于按模块和字段检索：
+日志格式：
 
 ```text
 【Trace ID=[gift-message-id]】【Module】Event | Field=Value | Field=Value
 ```
 
-例如：
+示例：
 
 ```text
 【Trace ID=[gift-message-123]】【Download】Download Started | URL=[https://example.com/gift.svga] | Download Priority=80 | Format=Auto | Cache File=[gift.svga]
@@ -472,18 +469,7 @@ SDK 会强引用日志接收器。请传入 Application 级对象，不要在闭
 【Trace ID=[gift-message-123]】【Playback】Playback Failed | Playback Generation=3 | Error Type=Render Failed | Format=VAP | Reason=...
 ```
 
-为串联一次礼物从下载到播放结束的完整链路，请在创建请求时传入服务端消息 ID：
-
-```kotlin
-AnimationRequest(
-    traceId = giftMessageId,
-    source = AnimationSource.Url(animationUrl, downloadPriority = 80),
-)
-```
-
-未传入 `traceId` 时 SDK 自动生成 UUID。常用模块包括 `初始化`、`资源解析`、`下载`、`缓存`、`队列`、`播放`、`SVGA`。下载、缓存和队列相关日志会保留动画追踪 ID、原始 URL、优先级和缓存文件名。
-
-运行期间可以调整：
+运行期间可调整日志出口：
 
 ```kotlin
 GiftPlayer.setLogcatEnabled(false)
@@ -492,18 +478,22 @@ GiftPlayer.setLogger(null)
 
 ## 模块说明
 
-- `giftplayer`：核心 SDK、下载缓存、播放队列、插件接口和内置 SVGA
-- `giftplayer-pag`：libpag 适配插件，不传递 libpag 依赖
-- `giftplayer-vap`：VAP 适配插件，不传递 VAP 依赖
-- `app`：单播放、队列播放、assets 和批量下载示例
-- `lib_download`：下载适配模块
-- `filedownloader`：中台定制下载实现
+| 模块 | 说明 |
+| --- | --- |
+| `giftplayer` | 核心 API、下载、缓存、队列、插件 SPI 和内置 SVGA |
+| `giftplayer-pag` | PAG 适配插件，不传递 `libpag` |
+| `giftplayer-vap` | VAP 适配插件，不传递 VAP |
+| `lib_download` | 仓库内部的下载适配模块 |
+| `filedownloader` | 仓库内部的定制下载实现 |
+| `app` | URL、assets、队列和批量下载示例 |
 
-下载实现保留为仓库内部模块，但通过 Maven 发布依赖关系传递给接入工程。业务项目不应该直接调用 `AnimationResourceManager` 或依赖下载实现模块，统一通过 `GiftPlayer` 使用下载和缓存能力。PAG/VAP 引擎则采用相反策略：插件在编译时使用引擎，但不会把引擎传递给业务项目，以便业务项目自行控制版本。
+接入方不应直接依赖 `lib_download`、`filedownloader` 或调用内部的 `AnimationResourceManager`，统一通过 `GiftPlayer` 使用下载和缓存能力。
 
 ## 源码查看
 
-发布产物包含完整 `sources.jar`。Android Studio 正确下载并关联同版本源码后，可以直接查看 Kotlin 源码和注释。如果仍看到 `COMPILED_CODE`，通常是 IDE 尚未关联 sources，或者本地仍缓存旧版本。发布新代码时必须创建新的 Git Tag 和依赖版本，不要覆盖已发布 Tag。
+发布配置会生成 `sources.jar`。接入工程使用发布仓库提供的同版本源码包后，可以在 Android Studio 中查看 Kotlin 源码和注释。若 IDE 显示 `COMPILED_CODE`，通常表示当前依赖版本没有关联源码包，或仍在使用本地缓存的旧版本。
+
+发布新版本请创建新的 Git Tag，不要覆盖已有 Tag。
 
 ## License
 

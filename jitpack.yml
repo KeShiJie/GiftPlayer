@@ -2,4 +2,4 @@ jdk:
   - openjdk17
 
 install:
-  - ./gradlew :filedownloader:publishToMavenLocal :lib_download:publishToMavenLocal :giftplayer:publishToMavenLocal
+  - ./gradlew :filedownloader:publishToMavenLocal :lib_download:publishToMavenLocal :giftplayer:publishToMavenLocal :giftplayer-pag:publishToMavenLocal :giftplayer-vap:publishToMavenLocal
