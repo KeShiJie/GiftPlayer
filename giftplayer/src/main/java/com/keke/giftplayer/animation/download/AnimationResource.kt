@@ -10,23 +10,18 @@ import java.util.UUID
 data class AnimationResource(
     /** 稳定的业务资源 ID，例如礼品 ID、活动动画 ID 或头像框 ID. */
     val id: String? = null,
-
+    /** 资源 URL. */
     val url: String,
-
     /** 资源版本，用于区分同一 ID 的不同版本. */
     val version: String? = null,
-
     /** 文件MD5值。如果服务器提供 */
     val md5: String? = null,
-
+    /** 资源格式。默认为自动检测。 */
     val format: AnimationFormat = AnimationFormat.Auto,
-
     /** 资源类别，例如礼物、房间或公共区域。 */
     val category: String? = null,
-
     /** 下载等待队列中的优先级数值；数值越大越先下载，由接入方定义。 */
     val downloadPriority: Int = 0,
-
     /** 单次下载请求的链路标识；建议传入业务消息 ID，未传时自动生成。 */
     val traceId: String = UUID.randomUUID().toString(),
 )

@@ -189,7 +189,7 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
             "Enqueued ${request.source.label()} as ${request.format.name}, " +
                 "playbackPriority=${playbackPriority.level}",
         )
-        playerView.enqueue(request, playbackPriority.level)
+        playerView.enqueue(request)
     }
 
     private fun selectedFormat(): AnimationFormat {
@@ -232,6 +232,7 @@ class GiftQueuePlayerActivity : AppCompatActivity() {
             is AnimationError.DecodeFailed -> "Decode failed: ${cause?.message.orEmpty()}"
             is AnimationError.RenderFailed -> "Render failed: ${cause?.message.orEmpty()}"
             is AnimationError.Cancelled -> reason
+            else -> "?? Error"
         }
     }
 }

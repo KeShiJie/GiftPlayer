@@ -43,6 +43,11 @@ open class AnimationPlayerView @JvmOverloads constructor(
     private var released = false
     //因不可见而暂停
     private var pausedForVisibility = false
+    //开播看门狗：play 后超时仍未 onStart 时兜底报错，防止宿主队列永久卡死
+    private var playbackStartWatchdog: Runnable? = null
+
+    /** 开播超时兜底时长（毫秒），<=0 表示关闭看门狗。 */
+    var playbackStartTimeoutMillis: Long = DEFAULT_PLAYBACK_START_TIMEOUT_MILLIS
 
     open fun setCallback(callback: AnimationCallback?) {
         this.animationCallback = callback
@@ -63,6 +68,9 @@ open class AnimationPlayerView @JvmOverloads constructor(
         currentPlayer = null
         removeAllViews()
         animationCallback?.onLoadStart(request)
+        if (request.autoPlay) {
+            armPlaybackStartWatchdog(currentId, request)
+        }
         currentResolveTask = sourceResolver.resolve(request.source, object : AnimationSourceResolveCallback {
             override fun onSuccess(source: ResolvedAnimationSource) {
                 runOnMain {
@@ -129,6 +137,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         val request = currentRequest
         val stoppedRequestId = playbackGeneration
         playbackGeneration += 1
+        cancelPlaybackStartWatchdog()
         GiftPlayerLog.info(
             "Playback",
             "Stop Playback",
@@ -149,6 +158,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         released = true
         val releasedRequestId = playbackGeneration
         playbackGeneration += 1
+        cancelPlaybackStartWatchdog()
         GiftPlayerLog.info(
             "Playback",
             "Release Player",
@@ -174,6 +184,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
             return
         }
         playbackGeneration += 1
+        cancelPlaybackStartWatchdog()
         currentResolveTask.cancel()
         currentPlayer?.release()
         currentPlayer = null
@@ -225,6 +236,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
             override fun onStart() {
                 runOnMain {
                     if (isCurrent(currentId)) {
+                        cancelPlaybackStartWatchdog()
                         GiftPlayerLog.info("Playback", "Playback Started", "Playback Generation=$currentId | ${GiftPlayerLog.requestSummary(request)}")
                         animationCallback?.onStart(request)
                     }
@@ -246,6 +258,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
             override fun onComplete() {
                 runOnMain {
                     if (isCurrent(currentId)) {
+                        cancelPlaybackStartWatchdog()
                         GiftPlayerLog.info(
                             "Playback",
                             "Playback Completed",
@@ -259,6 +272,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
             override fun onCancel() {
                 runOnMain {
                     if (isCurrent(currentId)) {
+                        cancelPlaybackStartWatchdog()
                         GiftPlayerLog.info(
                             "Playback",
                             "Playback Cancelled",
@@ -283,6 +297,7 @@ open class AnimationPlayerView @JvmOverloads constructor(
         error: AnimationError,
     ) {
         if (!isCurrent(currentId)) return
+        cancelPlaybackStartWatchdog()
         GiftPlayerLog.error(
             "Playback",
             "Playback Failed",
@@ -313,5 +328,37 @@ open class AnimationPlayerView @JvmOverloads constructor(
 
     protected fun isMainThread(): Boolean {
         return Looper.myLooper() == Looper.getMainLooper()
+    }
+
+    /**
+     * 开播看门狗：play 后若超时仍未收到引擎 onStart（例如 TextureView 系引擎在不可见容器中
+     * 等不到 surface，或解码/加载挂死），兜底派发 StartTimeout 错误，让请求进入 terminal
+     * 流程，宿主队列得以继续推进，避免整条队列永久卡死。
+     */
+    private fun armPlaybackStartWatchdog(watchdogId: Long, request: AnimationRequest) {
+        cancelPlaybackStartWatchdog()
+        val timeoutMillis = playbackStartTimeoutMillis
+        if (timeoutMillis <= 0L) return
+        val watchdog = Runnable {
+            playbackStartWatchdog = null
+            if (!isCurrent(watchdogId)) return@Runnable
+            GiftPlayerLog.error(
+                "Playback",
+                "Playback Start Timeout",
+                "Playback Generation=$watchdogId | ${GiftPlayerLog.traceSummary(request)} | Timeout=${timeoutMillis}ms",
+            )
+            dispatchError(watchdogId, request, AnimationError.StartTimeout(timeoutMillis))
+        }
+        playbackStartWatchdog = watchdog
+        mainHandler.postDelayed(watchdog, timeoutMillis)
+    }
+
+    private fun cancelPlaybackStartWatchdog() {
+        playbackStartWatchdog?.let(mainHandler::removeCallbacks)
+        playbackStartWatchdog = null
+    }
+
+    private companion object {
+        const val DEFAULT_PLAYBACK_START_TIMEOUT_MILLIS = 10_000L
     }
 }

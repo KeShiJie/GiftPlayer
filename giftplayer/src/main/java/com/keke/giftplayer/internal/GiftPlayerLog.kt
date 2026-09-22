@@ -156,6 +156,7 @@ internal object GiftPlayerLog {
             is AnimationError.FileNotFound -> "Error Type=File Not Found | File Path=[${error.path}]"
             is AnimationError.DecodeFailed -> "Error Type=Decode Failed | Format=${formatName(error.format)} | Reason=${error.cause?.message.orEmpty()}"
             is AnimationError.RenderFailed -> "Error Type=Render Failed | Format=${formatName(error.format)} | Reason=${error.cause?.message.orEmpty()}"
+            is AnimationError.StartTimeout -> "Error Type=Start Timeout | Timeout=${error.timeoutMillis}ms"
             is AnimationError.Cancelled -> "Error Type=Cancelled | Reason=${error.reason}"
         }
     }

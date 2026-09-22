@@ -96,19 +96,20 @@ open class GiftAnimationQueueView @JvmOverloads constructor(
      * 追加一条播放消息。播放优先级由接入方定义，数值越大越先从已准备消息中播放。
      */
     @JvmOverloads
-    fun enqueue(request: AnimationRequest, playbackPriority: Int = 0) {
+    fun enqueue(request: AnimationRequest) {
         runOnMain {
+            val downloadPriority = (request.source as? AnimationSource.Url)?.downloadPriority ?: 0
             if (disposed) return@runOnMain
             val entry = queue.add(
                 value = Message(request),
-                playbackPriority = playbackPriority,
+                playbackPriority = downloadPriority,
                 now = SystemClock.elapsedRealtime(),
                 ttlMillis = config.messageTtlMillis,
             )
             GiftPlayerLog.info(
                 "Queue",
                 "Enqueued",
-                GiftPlayerLog.queueSummary(entry.sequence, playbackPriority, request),
+                GiftPlayerLog.queueSummary(entry.sequence, downloadPriority, request),
             )
             notifyClient { onLoadStart(request) }
             if (!queue.isWaiting(entry) || disposed) return@runOnMain

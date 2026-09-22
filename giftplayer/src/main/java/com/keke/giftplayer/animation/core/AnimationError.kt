@@ -12,5 +12,6 @@ sealed class AnimationError {
     data class FileNotFound(val path: String) : AnimationError()
     data class DecodeFailed(val format: AnimationFormat, val cause: Throwable?) : AnimationError()
     data class RenderFailed(val format: AnimationFormat, val cause: Throwable?) : AnimationError()
+    data class StartTimeout(val timeoutMillis: Long) : AnimationError()
     data class Cancelled(val reason: String) : AnimationError()
 }
